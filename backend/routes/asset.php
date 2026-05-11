@@ -33,36 +33,14 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
 
      
 
-    Route::get('/audit-logs', [AuditLogController::class, 'index']);
-    Route::get('/audit-logs/{id}', [AuditLogController::class, 'show']);
+    //  Asset Registration 
+    // Asset Categories 
+    // Asset Tracking 
 
-     
- 
+    // Maintenance Management 
 
-    // Roles
-    Route::get('/roles', [RoleController::class, 'index']);
-    Route::get('/role-permissions', [RoleController::class, 'permissions']);
-    Route::get('/roles/{id}/permissions', [RoleController::class, 'rolePermissions']);
-    Route::post('/roles', [RoleController::class, 'store']);
-    Route::put('/roles/{id}', [RoleController::class, 'update']);
-    Route::post('/roles/{id}/permissions', [RoleController::class, 'assignPermissions']);
+    // Asset Depreciation 
 
-    // Users
-    Route::get('/users/roles-lite', [UserController::class, 'rolesLite']);
-    Route::get('/users/waiters-lite', [UserController::class, 'waitersLite']);
-    Route::get('/users', [UserController::class, 'index']);
-    Route::get('/users/{id}', [UserController::class, 'show']);
-    Route::post('/users', [UserController::class, 'store']);
-    Route::put('/users/{id}', [UserController::class, 'update']);
-    Route::patch('/users/{id}/toggle', [UserController::class, 'toggle']);
-    Route::delete('/users/{id}', [UserController::class, 'destroy']);
-    Route::post('/users/{id}/reset-password', [UserController::class, 'resetPassword']);
-    Route::post('/users/{id}/roles', [UserController::class, 'assignRole']);
-
-    // Permissions
-    Route::get('/permissions', [PermissionController::class, 'index']);
-    Route::post('/permissions', [PermissionController::class, 'store']);
-    Route::put('/permissions/{id}', [PermissionController::class, 'update']);
-    Route::delete('/permissions/{id}', [PermissionController::class, 'destroy']);
+    // Asset Disposal 
  
 });
