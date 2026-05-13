@@ -7,33 +7,33 @@ use Spatie\Permission\Models\Role;
 
 class RolePolicy
 {
-   public function viewAny(User $user): bool
-   {
-   return true;
-   }
+    public function viewAny(User $user): bool
+    {
+        return $user->can('roles.view') || $user->can('roles.read');
+    }
 
     public function view(User $user, Role $role): bool
     {
-        return $user->can('roles.read');
+        return $user->can('roles.view') || $user->can('roles.read');
     }
 
     public function create(User $user): bool
     {
-        return $user->can('roles.create') || $user->can('roles.assign');
+        return $user->isSuperAdmin() && $user->can('roles.create');
     }
 
     public function update(User $user, Role $role): bool
     {
-        return $user->can('roles.update') || $user->can('roles.assign');
+        return $user->isSuperAdmin() && $user->can('roles.update');
     }
 
     public function assignPermissions(User $user, Role $role): bool
     {
-        return $user->can('roles.assign');
+        return $user->isSuperAdmin() && $user->can('roles.assign-permissions');
     }
 
     public function delete(User $user, Role $role): bool
     {
-        return $user->can('roles.delete');
+        return $user->isSuperAdmin() && $user->can('roles.delete');
     }
 }

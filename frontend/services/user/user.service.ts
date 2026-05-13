@@ -3,6 +3,7 @@ import type {
   ApiEnvelope,
   AssignUserRolePayload,
   CreateUserPayload,
+  OfficeItem,
   PaginatedResponse,
   PermissionItem,
   PermissionListParams,
@@ -86,25 +87,28 @@ export const userService = {
     return Array.isArray(body?.data) ? (body.data as RoleItem[]) : [];
   },
 
+  async officesLite(params: { type?: string; parent_id?: number | string | null } = {}) {
+    const response = await api.get("/admin/users/offices-lite", { params: cleanParams(params) });
+    const body = response.data;
+    return Array.isArray(body?.data) ? (body.data as OfficeItem[]) : [];
+  },
+
   async waitersLite(search?: string) {
     const response = await api.get("/admin/users/waiters-lite", { params: cleanParams({ search }) });
     const body = response.data;
     return Array.isArray(body?.data) ? (body.data as UserItem[]) : [];
   },
 
-  // Compatibility aliases for older starter pages.
   async roles(params: RoleListParams = {}) {
     const response = await api.get("/admin/roles", { params: cleanParams(params) });
-    const body = response.data;
-    if (Array.isArray(body?.data)) return body.data as RoleItem[];
-    return [];
+    return paginated<RoleItem>(response.data);
   },
 
   async permissions(params: PermissionListParams = { all: true }) {
     const response = await api.get("/admin/permissions", { params: cleanParams(params) });
     const body = response.data;
-    if (Array.isArray(body?.data)) return body.data as PermissionItem[];
-    return [];
+    if (params.all && Array.isArray(body?.data)) return body.data as PermissionItem[];
+    return Array.isArray(body?.data) ? (body.data as PermissionItem[]) : [];
   },
 };
 

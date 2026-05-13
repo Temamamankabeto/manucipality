@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Role;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,9 +22,8 @@ class UpdateRoleRequest extends FormRequest
                 'required',
                 'string',
                 'max:100',
-                Rule::unique('roles', 'name')
-                    ->ignore($roleId)
-                    ->where(fn ($q) => $q->where('guard_name', 'sanctum')),
+                Rule::in([User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN]),
+                Rule::unique('roles', 'name')->ignore($roleId)->where(fn ($q) => $q->where('guard_name', 'sanctum')),
             ],
         ];
     }

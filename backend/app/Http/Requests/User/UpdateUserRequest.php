@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,21 +19,18 @@ class UpdateUserRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:100'],
-            'email' => [
-                'required',
-                'email',
-                'max:100',
-                Rule::unique('users', 'email')->ignore($userId),
-            ],
-            'phone' => [
-                'required',
-                'string',
-                'max:20',
-                Rule::unique('users', 'phone')->ignore($userId),
-            ],
+            'email' => ['required', 'email', 'max:100', Rule::unique('users', 'email')->ignore($userId)],
+            'phone' => ['required', 'string', 'max:20', Rule::unique('users', 'phone')->ignore($userId)],
+            'address' => ['nullable', 'string', 'max:500'],
+            'admin_level' => ['nullable', Rule::in([User::LEVEL_CITY, User::LEVEL_SUBCITY, User::LEVEL_WOREDA, User::LEVEL_ZONE])],
+            'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')],
+            'sub_city_id' => ['nullable', 'integer', Rule::exists('offices', 'id')],
+            'woreda_id' => ['nullable', 'integer', Rule::exists('offices', 'id')],
+            'zone_id' => ['nullable', 'integer', Rule::exists('offices', 'id')],
             'role' => [
                 'required',
                 'string',
+                Rule::in([User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN]),
                 Rule::exists('roles', 'name')->where(fn ($q) => $q->where('guard_name', 'sanctum')),
             ],
         ];

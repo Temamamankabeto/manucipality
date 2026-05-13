@@ -51,8 +51,14 @@ export const roleService = {
     return unwrap<ApiEnvelope<RoleItem>>(response);
   },
 
-  async permissionCatalog() {
-    const response = await api.get("/admin/role-permissions");
+  async permissions(search?: string) {
+    const response = await api.get("/admin/role-permissions", { params: cleanParams({ search }) });
+    const body = response.data;
+    return Array.isArray(body?.data) ? (body.data as PermissionItem[]) : [];
+  },
+
+  async permissionCatalog(search?: string) {
+    const response = await api.get("/admin/role-permissions", { params: cleanParams({ search }) });
     const body = response.data;
     return Array.isArray(body?.data) ? (body.data as PermissionItem[]) : [];
   },

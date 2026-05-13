@@ -1,5 +1,6 @@
 import api, { clearSession, unwrap } from "@/lib/api";
 import type { CustomerRegisterPayload } from "@/lib/auth/auth.schema";
+import type { AdminLevel, OfficeItem } from "@/types/user-management/user.type";
 
 export type AuthUser = {
   id?: number | string;
@@ -7,19 +8,32 @@ export type AuthUser = {
   email?: string;
   phone?: string;
   address?: string | null;
+  status?: string;
   role?: string;
   roles?: string[];
   permissions?: string[];
+  admin_level?: AdminLevel | null;
+  office_id?: number | null;
+  sub_city_id?: number | null;
+  woreda_id?: number | null;
+  zone_id?: number | null;
+  office?: OfficeItem | null;
+  sub_city?: OfficeItem | null;
+  woreda?: OfficeItem | null;
+  zone?: OfficeItem | null;
 };
 
 type LoginResponse = {
   token?: string;
   access_token?: string;
+  refresh_token?: string;
   user?: AuthUser;
   roles?: string[];
   permissions?: string[];
   data?: LoginResponse;
 };
+
+type ApiEnvelope<T> = { success: boolean; message?: string; data: T; meta?: unknown };
 
 function normalizeLoginResponse(response: unknown): LoginResponse {
   const value = response as { data?: LoginResponse } | LoginResponse;
@@ -42,6 +56,7 @@ function clearAuthCookies() {
   deleteCookie("roles");
   deleteCookie("permissions");
   deleteCookie("user");
+  deleteCookie("refresh_token");
 }
 
 export const authService = {
@@ -57,7 +72,7 @@ export const authService = {
 
   async me() {
     const response = await api.get("/auth/me");
-    return unwrap<AuthUser>(response);
+    return unwrap<ApiEnvelope<AuthUser>>(response).data;
   },
 
   async logout() {
@@ -72,6 +87,7 @@ export const authService = {
   saveSession(response: LoginResponse) {
     if (typeof window === "undefined") return;
     const token = response.token ?? response.access_token ?? response.data?.token ?? response.data?.access_token;
+    const refreshToken = response.refresh_token ?? response.data?.refresh_token;
     const user = response.user ?? response.data?.user ?? null;
     const roles = response.roles ?? response.data?.roles ?? user?.roles ?? (user?.role ? [user.role] : []);
     const permissions = response.permissions ?? response.data?.permissions ?? user?.permissions ?? [];
@@ -79,6 +95,10 @@ export const authService = {
     if (token) {
       localStorage.setItem("token", token);
       setCookie("token", token);
+    }
+    if (refreshToken) {
+      localStorage.setItem("refresh_token", refreshToken);
+      setCookie("refresh_token", refreshToken, 60 * 60 * 24 * 30);
     }
     if (user) {
       localStorage.setItem("user", JSON.stringify(user));

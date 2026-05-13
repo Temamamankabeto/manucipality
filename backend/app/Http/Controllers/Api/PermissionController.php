@@ -13,33 +13,27 @@ class PermissionController extends Controller
     public function index(Request $request)
     {
         $this->authorize('viewAny', Permission::class);
-    
+
         $search = trim((string) $request->query('search', ''));
-        $perPage = (int) $request->query('per_page', 10);
+        $perPage = max(1, min((int) $request->query('per_page', 10), 100));
         $all = $request->boolean('all');
-    
-        if ($perPage <= 0) {
-            $perPage = 10;
-        }
-    
-        if ($perPage > 100) {
-            $perPage = 100;
-        }
-    
-        $q = Permission::query()
+
+        $query = Permission::query()
             ->where('guard_name', 'sanctum')
             ->orderBy('name');
-    
+
         if ($search !== '') {
-            $q->where('name', 'like', "%{$search}%");
+            $query->where('name', 'like', "%{$search}%");
         }
-    
+
         $columns = ['id', 'name', 'guard_name', 'created_at', 'updated_at'];
-    
+
         if ($all) {
-            $permissions = $q->get($columns);
-    
+            $permissions = $query->get($columns);
+
             return response()->json([
+                'success' => true,
+                'message' => 'Permissions retrieved successfully',
                 'data' => $permissions,
                 'meta' => [
                     'current_page' => 1,
@@ -49,10 +43,12 @@ class PermissionController extends Controller
                 ],
             ]);
         }
-    
-        $permissions = $q->paginate($perPage, $columns);
-    
+
+        $permissions = $query->paginate($perPage, $columns);
+
         return response()->json([
+            'success' => true,
+            'message' => 'Permissions retrieved successfully',
             'data' => $permissions->items(),
             'meta' => [
                 'current_page' => $permissions->currentPage(),
@@ -66,11 +62,12 @@ class PermissionController extends Controller
     public function store(Request $request)
     {
         $this->authorize('create', Permission::class);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120', 'unique:permissions,name'],
         ]);
 
-        $perm = Permission::create([
+        $permission = Permission::create([
             'name' => $data['name'],
             'guard_name' => 'sanctum',
         ]);
@@ -79,50 +76,45 @@ class PermissionController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Permission created',
-            'data' => $perm,
+            'message' => 'Permission created successfully',
+            'data' => $permission,
+            'meta' => null,
         ], 201);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, int|string $id)
     {
-        $perm = Permission::where('guard_name', 'sanctum')->findOrFail($id);
-        $this->authorize('update', $perm);
+        $permission = Permission::where('guard_name', 'sanctum')->findOrFail($id);
+        $this->authorize('update', $permission);
 
         $data = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:120',
-                Rule::unique('permissions', 'name')->ignore($perm->id),
-            ],
+            'name' => ['required', 'string', 'max:120', Rule::unique('permissions', 'name')->ignore($permission->id)],
         ]);
 
-        $perm->update([
-            'name' => $data['name'],
-        ]);
-
+        $permission->update(['name' => $data['name']]);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return response()->json([
             'success' => true,
-            'message' => 'Permission updated',
-            'data' => $perm,
+            'message' => 'Permission updated successfully',
+            'data' => $permission,
+            'meta' => null,
         ]);
     }
 
-    public function destroy($id)
+    public function destroy(int|string $id)
     {
-        $perm = Permission::where('guard_name', 'sanctum')->findOrFail($id);
-        $this->authorize('delete', $perm);
+        $permission = Permission::where('guard_name', 'sanctum')->findOrFail($id);
+        $this->authorize('delete', $permission);
 
-        $perm->delete();
-
+        $permission->delete();
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return response()->json([
             'success' => true,
-            'message' => 'Permission deleted',
+            'message' => 'Permission deleted successfully',
+            'data' => null,
+            'meta' => null,
         ]);
     }
 }

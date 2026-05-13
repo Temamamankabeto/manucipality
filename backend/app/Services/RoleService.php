@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -18,22 +19,21 @@ class RoleService
 
         $query = Role::query()
             ->where('guard_name', $this->guard)
+            ->whereIn('name', [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN])
             ->orderBy('name');
 
         if ($search !== '') {
             $query->where('name', 'like', "%{$search}%");
         }
 
-        return $query->paginate(
-            $perPage,
-            ['id', 'name', 'guard_name', 'created_at', 'updated_at']
-        );
+        return $query->paginate($perPage, ['id', 'name', 'guard_name', 'created_at', 'updated_at']);
     }
 
     public function transformPaginatedRoles(LengthAwarePaginator $roles): array
     {
         return [
             'success' => true,
+            'message' => 'Roles retrieved successfully',
             'data' => $roles->items(),
             'meta' => [
                 'current_page' => $roles->currentPage(),
@@ -46,17 +46,12 @@ class RoleService
 
     public function getRole(int|string $id): Role
     {
-        return Role::query()
-            ->where('guard_name', $this->guard)
-            ->findOrFail($id);
+        return Role::query()->where('guard_name', $this->guard)->whereIn('name', [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN])->findOrFail($id);
     }
 
     public function getPermissions(?string $search = null)
     {
-        $query = Permission::query()
-            ->where('guard_name', $this->guard)
-            ->orderBy('name');
-
+        $query = Permission::query()->where('guard_name', $this->guard)->orderBy('name');
         $search = trim((string) $search);
 
         if ($search !== '') {
@@ -68,11 +63,7 @@ class RoleService
 
     public function createRole(array $data): Role
     {
-        $role = Role::create([
-            'name' => $data['name'],
-            'guard_name' => $this->guard,
-        ]);
-
+        $role = Role::firstOrCreate(['name' => $data['name'], 'guard_name' => $this->guard]);
         $this->clearPermissionCache();
 
         return $role;
@@ -80,10 +71,7 @@ class RoleService
 
     public function updateRole(Role $role, array $data): Role
     {
-        $role->update([
-            'name' => $data['name'],
-        ]);
-
+        $role->update(['name' => $data['name']]);
         $this->clearPermissionCache();
 
         return $role->fresh();
@@ -91,19 +79,12 @@ class RoleService
 
     public function getRolePermissions(Role $role)
     {
-        return $role->permissions()
-            ->where('guard_name', $this->guard)
-            ->orderBy('name')
-            ->get(['id', 'name', 'guard_name']);
+        return $role->permissions()->where('guard_name', $this->guard)->orderBy('name')->get(['id', 'name', 'guard_name']);
     }
 
     public function assignPermissions(Role $role, array $permissionNames = []): array
     {
-        $permNames = collect($permissionNames)
-            ->map(fn ($name) => trim((string) $name))
-            ->filter()
-            ->values()
-            ->all();
+        $permNames = collect($permissionNames)->map(fn ($name) => trim((string) $name))->filter()->values()->all();
 
         $existingPermissions = Permission::query()
             ->where('guard_name', $this->guard)
@@ -111,7 +92,6 @@ class RoleService
             ->get();
 
         $role->syncPermissions($existingPermissions);
-
         $this->clearPermissionCache();
 
         return [
