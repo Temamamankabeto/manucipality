@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use App\Models\User;
-use Spatie\Permission\Models\Role;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 class RolesPermissionsSeeder extends Seeder
@@ -15,102 +15,84 @@ class RolesPermissionsSeeder extends Seeder
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
+        $guard = 'sanctum';
+
         $permissions = [
-            'auth.me',
-
-            'users.read', 'users.create', 'users.update', 'users.disable', 'users.delete',
-            'roles.read', 'roles.assign',
-            'permissions.read',
-            'audit.read',
-         
-
-             
+            'dashboard.view',
+            'users.view', 'users.create', 'users.update', 'users.delete', 'users.toggle', 'users.reset-password',
+            'roles.view', 'roles.create', 'roles.update', 'roles.delete', 'roles.assign', 'roles.assign-permissions',
+            'permissions.view', 'permissions.create', 'permissions.update', 'permissions.delete',
+            'offices.view',
+            'audit.view',
+            'citizens.view', 'citizens.create', 'citizens.update', 'citizens.verify', 'citizens.validate', 'citizens.approve', 'citizens.suspend',
+            'reports.view', 'reports.export',
+            'notifications.view', 'notifications.send',
         ];
 
         foreach ($permissions as $permission) {
-            Permission::firstOrCreate([
-                'name' => $permission,
-                'guard_name' => 'sanctum',
-            ]);
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => $guard]);
         }
 
-        $roleMap = [
-// system Admin
-        
-            // Procurement & Payment  module 
-            'Employee / Requester',
-            'Department Head',
-            'Budget Officer',
-            'Procurement Officer',
-            'Storekeeper',
-            'Finance Officer',
-            'Finance Manager',
-            'Auditor',
-           
-            // • Asset Management module
-            'Asset Officer',
-            'Department Manager',
-            'Storekeeper',
-            'Maintenance Officer',
-            'Technician',
-            'Finance Officer',
-            'Auditor',
-            'City Manager',
+        $superAdmin = Role::firstOrCreate(['name' => User::ROLE_SUPER_ADMIN, 'guard_name' => $guard]);
+        $admin = Role::firstOrCreate(['name' => User::ROLE_ADMIN, 'guard_name' => $guard]);
 
-            // • Citizen Management module 
-            'Citizen',
-            'Front Officer',
-            'Back Officer',
-            'Registrar Supervisor',
-            'ID Officer',
-             
-            'Auditor',
-            'City Manager',
-        // •Property Management module
-          'Citizen / Owner',
-          'Front Officer',
-          'Property Officer',
-          'Surveyor / GIS Officer',
-          'Valuation Officer',
-          'Lease Officer',
-          'Finance Officer',
-          'Legal Officer',
-          'Property Supervisor',
-          'Auditor',
-       
+        $superAdmin->syncPermissions(Permission::where('guard_name', $guard)->pluck('name')->all());
 
-
-        ];
-
-        foreach ($roleMap as $roleName => $permissionsForRole) {
-            $role = Role::firstOrCreate([
-                'name' => $roleName,
-                'guard_name' => 'sanctum',
-            ]);
-
-            $role->syncPermissions($permissionsForRole);
-        }
-
-        $generalAdmin = Role::firstOrCreate([
-            'name' => 'General Admin',
-            'guard_name' => 'sanctum',
+        $admin->syncPermissions([
+            'dashboard.view',
+            'users.view', 'users.create', 'users.update', 'users.delete', 'users.toggle', 'users.reset-password',
+            'roles.view', 'roles.assign',
+            'offices.view',
+            'audit.view',
+            'citizens.view', 'citizens.create', 'citizens.update', 'citizens.verify', 'citizens.validate', 'citizens.approve', 'citizens.suspend',
+            'reports.view', 'reports.export',
+            'notifications.view', 'notifications.send',
         ]);
 
-        $generalAdmin->syncPermissions(Permission::where('guard_name', 'sanctum')->pluck('name')->toArray());
+        $this->convertOldRoles($superAdmin, $admin);
 
-        $admin = User::firstOrCreate(
-            ['email' => 'admin@aig.com'],
-            [
-                'name' => 'General Admin',
-                'phone' => '+1234567890',
-                'password' => Hash::make('Admin@12345'),
-            ]
-        );
-
-        if (!$admin->hasRole('General Admin')) {
-            $admin->assignRole('General Admin');
-        }
+        Role::query()
+            ->where('guard_name', $guard)
+            ->whereNotIn('name', [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN])
+            ->delete();
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    protected function convertOldRoles(Role $superAdmin, Role $admin): void
+    {
+        $oldSuperRoles = ['System Admin', 'General Admin', 'City Manager', 'City DMIN'];
+        $oldAdminLevels = [
+            'City Admin' => User::LEVEL_CITY,
+            'City Manager' => User::LEVEL_CITY,
+            'Subcity Admin' => User::LEVEL_SUBCITY,
+            'Woreda Admin' => User::LEVEL_WOREDA,
+            'Zone Admin' => User::LEVEL_ZONE,
+            'Zone admin' => User::LEVEL_ZONE,
+        ];
+
+        User::query()->with('roles')->chunkById(100, function ($users) use ($oldSuperRoles, $oldAdminLevels, $superAdmin, $admin) {
+            foreach ($users as $user) {
+                $roleNames = $user->roles->pluck('name')->all();
+
+                if (array_intersect($roleNames, $oldSuperRoles)) {
+                    $user->syncRoles([$superAdmin->name]);
+                    $user->forceFill(['admin_level' => null])->save();
+                    continue;
+                }
+
+                foreach ($oldAdminLevels as $oldRole => $level) {
+                    if (in_array($oldRole, $roleNames, true)) {
+                        $user->syncRoles([$admin->name]);
+                        $user->forceFill(['admin_level' => $level])->save();
+                        continue 2;
+                    }
+                }
+            }
+        });
+
+        DB::table('model_has_roles')
+            ->whereNotIn('role_id', [$superAdmin->id, $admin->id])
+            ->delete();
     }
 }
