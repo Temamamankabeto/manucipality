@@ -2,7 +2,12 @@
 
 use App\Http\Controllers\Api\CitizenController;
 use App\Http\Controllers\Api\CitizenDocumentController;
+use App\Http\Controllers\Api\CitizenNotificationController;
+use App\Http\Controllers\Api\CitizenProfileController;
+use App\Http\Controllers\Api\CitizenReportController;
 use App\Http\Controllers\Api\CitizenWorkflowController;
+use App\Http\Controllers\Api\HouseholdController;
+use App\Http\Controllers\Api\HouseholdMemberController;
 use App\Http\Controllers\Api\OfficeController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +20,35 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{office}', [OfficeController::class, 'update']);
         Route::patch('/{office}/toggle', [OfficeController::class, 'toggle']);
         Route::delete('/{office}', [OfficeController::class, 'destroy']);
+    });
+
+    Route::get('/citizen-dashboard/metrics', [CitizenReportController::class, 'metrics']);
+
+    Route::prefix('citizen-reports')->group(function () {
+        Route::get('/gender-distribution', [CitizenReportController::class, 'gender']);
+        Route::get('/age-distribution', [CitizenReportController::class, 'age']);
+        Route::get('/households', [CitizenReportController::class, 'households']);
+        Route::get('/registration-trends', [CitizenReportController::class, 'trends']);
+        Route::get('/suspended', [CitizenReportController::class, 'suspended']);
+    });
+
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [CitizenNotificationController::class, 'index']);
+        Route::get('/unread-count', [CitizenNotificationController::class, 'unreadCount']);
+        Route::patch('/mark-all-read', [CitizenNotificationController::class, 'markAllAsRead']);
+        Route::patch('/{notification}/read', [CitizenNotificationController::class, 'markAsRead']);
+        Route::delete('/{notification}', [CitizenNotificationController::class, 'destroy']);
+    });
+
+    Route::prefix('households')->group(function () {
+        Route::get('/', [HouseholdController::class, 'index']);
+        Route::post('/', [HouseholdController::class, 'store']);
+        Route::get('/{household}', [HouseholdController::class, 'show']);
+        Route::put('/{household}', [HouseholdController::class, 'update']);
+        Route::delete('/{household}', [HouseholdController::class, 'destroy']);
+        Route::post('/{household}/members', [HouseholdMemberController::class, 'store']);
+        Route::put('/{household}/members/{member}', [HouseholdMemberController::class, 'update']);
+        Route::delete('/{household}/members/{member}', [HouseholdMemberController::class, 'destroy']);
     });
 
     Route::prefix('citizens')->group(function () {
@@ -32,6 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{citizen}', [CitizenController::class, 'destroy']);
         Route::patch('/{citizen}/submit', [CitizenController::class, 'submit']);
 
+        Route::get('/{citizen}/profile', [CitizenProfileController::class, 'show']);
         Route::get('/{citizen}/workflow', [CitizenWorkflowController::class, 'workflow']);
         Route::patch('/{citizen}/start-review', [CitizenWorkflowController::class, 'startReview']);
         Route::patch('/{citizen}/documents/verify', [CitizenWorkflowController::class, 'verifyDocuments']);

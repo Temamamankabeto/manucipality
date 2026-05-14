@@ -65,3 +65,22 @@ export {
 } from "@/hooks/location/use-offices";
 
 export { useAuditLogsQuery } from "@/hooks/user/use-audit-logs";
+
+export {
+  useHouseholdsQuery,
+  useHouseholdQuery,
+  useCreateHouseholdMutation,
+  useUpdateHouseholdMutation,
+  useDeleteHouseholdMutation,
+  useAddHouseholdMemberMutation,
+  useUpdateHouseholdMemberMutation,
+  useDeleteHouseholdMemberMutation,
+  useCitizenProfileQuery,
+  useCitizenDashboardMetricsQuery,
+  useCitizenReportQuery,
+  useNotificationsQuery,
+  useUnreadNotificationsQuery,
+  useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
+  useDeleteNotificationMutation,
+} from "@/hooks/citizen/use-phase-three";

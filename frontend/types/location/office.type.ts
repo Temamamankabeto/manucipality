@@ -31,10 +31,10 @@ export type OfficeItem = {
   parent?: OfficeItem | null;
   children?: OfficeItem[];
   is_active?: boolean;
+  can_delete?: boolean;
   children_count?: number;
   users_count?: number;
   citizens_count?: number;
-  can_delete?: boolean;
   created_at?: string;
   updated_at?: string;
 };
