@@ -2,9 +2,26 @@ import type { OfficeItem, OfficeListParams, OfficeType } from "@/types/location/
 
 export type { OfficeItem, OfficeListParams, OfficeType };
 
-export type ApiEnvelope<T> = { success: boolean; message?: string; data: T; meta?: PaginationMeta };
-export type PaginationMeta = { current_page: number; per_page: number; total: number; last_page: number };
-export type PaginatedResponse<T> = { success?: boolean; message?: string; data: T[]; meta: PaginationMeta };
+export type ApiEnvelope<T> = {
+  success: boolean;
+  message?: string;
+  data: T;
+  meta?: PaginationMeta;
+};
+
+export type PaginationMeta = {
+  current_page: number;
+  per_page: number;
+  total: number;
+  last_page: number;
+};
+
+export type PaginatedResponse<T> = {
+  success?: boolean;
+  message?: string;
+  data: T[];
+  meta: PaginationMeta;
+};
 
 export type CitizenStatus =
   | "draft"
@@ -25,7 +42,6 @@ export type CitizenWorkflowStage =
   | "subcity_approval"
   | "city_id_generation"
   | "activation"
-  | "flagged"
   | "submitted"
   | "under_review"
   | "woreda_verified"
@@ -33,6 +49,7 @@ export type CitizenWorkflowStage =
   | "city_id_generated"
   | "active"
   | "rejected"
+  | "flagged"
   | "suspended";
 
 export type CitizenGender = "male" | "female" | "other";
@@ -59,8 +76,6 @@ export type CitizenDocument = {
   size?: number;
   is_required?: boolean;
   is_verified?: boolean;
-  verification_status?: "pending" | "valid" | "invalid";
-  verification_remarks?: string | null;
   verified_at?: string | null;
   verified_by?: number | null;
   file_url?: string | null;
@@ -87,13 +102,11 @@ export type CitizenDuplicateFlag = {
   match_value?: string | null;
   national_id?: string | null;
   phone?: string | null;
-  status?: string | null;
-  severity?: string | null;
   remarks?: string | null;
-  flagged_by?: { id?: number; name?: string; email?: string } | null;
+  status?: string | null;
   flagged_at?: string | null;
-  citizen?: CitizenItem | null;
-  matched_citizen?: CitizenItem | null;
+  citizen?: CitizenItem;
+  matched_citizen?: CitizenItem;
   created_at?: string;
 };
 
@@ -120,7 +133,6 @@ export type CitizenItem = {
   photo_url?: string | null;
   registration_channel?: RegistrationChannel;
   status: CitizenStatus;
-  current_workflow_stage?: CitizenWorkflowStage | string | null;
   city_id?: number | null;
   subcity_id?: number | null;
   woreda_id?: number | null;
@@ -136,9 +148,8 @@ export type CitizenItem = {
   missing_required_documents?: CitizenDocumentType[];
   submitted_at?: string | null;
   reviewed_at?: string | null;
-  woreda_verified_at?: string | null;
-  subcity_approved_at?: string | null;
-  city_id_generated_at?: string | null;
+  verified_at?: string | null;
+  approved_at?: string | null;
   activated_at?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -157,7 +168,9 @@ export type CitizenListParams = {
   per_page?: number;
 };
 
-export type CitizenWorkflowListParams = CitizenListParams & { stage?: CitizenWorkflowStage };
+export type CitizenWorkflowListParams = CitizenListParams & {
+  stage?: CitizenWorkflowStage;
+};
 
 export type CitizenPayload = {
   national_id: string;
@@ -178,17 +191,35 @@ export type CitizenPayload = {
   registration_channel: RegistrationChannel;
   address: string;
   house_number?: string;
-  city_id: number | string;
-  subcity_id: number | string;
-  woreda_id: number | string;
-  zone_id: number | string;
+  city_id?: number | string | null;
+  subcity_id?: number | string | null;
+  woreda_id?: number | string | null;
+  zone_id?: number | string | null;
   photo?: File | null;
 };
 
-export type DuplicateCheckPayload = { national_id?: string; phone?: string; exclude_citizen_id?: number | string };
-export type DuplicateCheckResult = { has_duplicates: boolean; matches: CitizenItem[] };
-export type WorkflowActionPayload = { remarks?: string; reason?: string };
+export type DuplicateCheckPayload = {
+  national_id?: string;
+  phone?: string;
+  exclude_citizen_id?: number | string;
+};
+
+export type DuplicateCheckResult = {
+  has_duplicates: boolean;
+  matches: CitizenItem[];
+};
+
+export type WorkflowActionPayload = {
+  remarks?: string;
+  reason?: string;
+};
+
 export type DocumentVerificationPayload = {
   remarks?: string;
-  documents?: Array<{ id: number | string; status?: "pending" | "valid" | "invalid"; is_verified?: boolean; remarks?: string }>;
+  documents?: Array<{
+    id: number | string;
+    is_verified: boolean;
+    status?: "pending" | "valid" | "invalid";
+    remarks?: string;
+  }>;
 };
