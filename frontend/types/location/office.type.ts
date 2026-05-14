@@ -40,9 +40,9 @@ export type OfficeItem = {
 };
 
 export type OfficeListParams = {
+  search?: string;
   type?: OfficeType | "all";
   parent_id?: number | string | null;
-  search?: string;
   status?: OfficeStatusFilter;
   all?: boolean;
   page?: number;
@@ -51,8 +51,8 @@ export type OfficeListParams = {
 
 export type OfficePayload = {
   name: string;
-  type: OfficeType;
   code?: string;
+  type: OfficeType;
   parent_id?: number | string | null;
   is_active?: boolean;
 };

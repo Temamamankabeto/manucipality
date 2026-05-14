@@ -3,14 +3,18 @@ import type {
   ApiEnvelope,
   CitizenDocument,
   CitizenDocumentType,
+  CitizenDuplicateFlag,
   CitizenItem,
   CitizenListParams,
   CitizenPayload,
+  CitizenWorkflowListParams,
+  DocumentVerificationPayload,
   DuplicateCheckPayload,
   DuplicateCheckResult,
   OfficeItem,
   OfficeListParams,
   PaginatedResponse,
+  WorkflowActionPayload,
 } from "@/types/citizen/citizen.type";
 
 function cleanParams<T extends Record<string, unknown>>(params: T = {} as T) {
@@ -49,9 +53,14 @@ function toFormData(payload: CitizenPayload) {
   return form;
 }
 
+async function workflowPatch(path: string, payload: WorkflowActionPayload = {}) {
+  const response = await api.patch(path, payload);
+  return unwrap<ApiEnvelope<CitizenItem>>(response).data;
+}
+
 export const citizenService = {
   async offices(params: OfficeListParams = {}) {
-    const response = await api.get("/offices", { params: cleanParams(params) });
+    const response = await api.get("/offices", { params: cleanParams({ ...params, all: true }) });
     const body = response.data;
     return Array.isArray(body?.data) ? (body.data as OfficeItem[]) : [];
   },
@@ -67,18 +76,14 @@ export const citizenService = {
   },
 
   async create(payload: CitizenPayload) {
-    const response = await api.post("/citizens", toFormData(payload), {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await api.post("/citizens", toFormData(payload), { headers: { "Content-Type": "multipart/form-data" } });
     return unwrap<ApiEnvelope<CitizenItem>>(response).data;
   },
 
   async update(id: number | string, payload: CitizenPayload) {
     const form = toFormData(payload);
     form.append("_method", "PUT");
-    const response = await api.post(`/citizens/${id}`, form, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await api.post(`/citizens/${id}`, form, { headers: { "Content-Type": "multipart/form-data" } });
     return unwrap<ApiEnvelope<CitizenItem>>(response).data;
   },
 
@@ -97,10 +102,7 @@ export const citizenService = {
     form.append("type", payload.type);
     if (payload.title) form.append("title", payload.title);
     form.append("file", payload.file);
-
-    const response = await api.post(`/citizens/${id}/documents`, form, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await api.post(`/citizens/${id}/documents`, form, { headers: { "Content-Type": "multipart/form-data" } });
     return unwrap<ApiEnvelope<CitizenDocument>>(response).data;
   },
 
@@ -112,6 +114,35 @@ export const citizenService = {
   async checkDuplicates(payload: DuplicateCheckPayload) {
     const response = await api.post("/citizens/validate-duplicate", payload);
     return unwrap<ApiEnvelope<DuplicateCheckResult>>(response).data;
+  },
+
+  async workflowQueue(params: CitizenWorkflowListParams = {}) {
+    const response = await api.get("/citizens/workflow/pending", { params: cleanParams(params) });
+    return paginated<CitizenItem>(response.data);
+  },
+
+  async workflow(id: number | string) {
+    const response = await api.get(`/citizens/${id}/workflow`);
+    return unwrap<ApiEnvelope<CitizenItem>>(response).data;
+  },
+
+  async duplicateFlags(params: { status?: string; page?: number; per_page?: number } = {}) {
+    const response = await api.get("/citizens/duplicates", { params: cleanParams(params) });
+    return paginated<CitizenDuplicateFlag>(response.data);
+  },
+
+  startReview: (id: number | string, payload?: WorkflowActionPayload) => workflowPatch(`/citizens/${id}/start-review`, payload),
+  woredaVerify: (id: number | string, payload?: WorkflowActionPayload) => workflowPatch(`/citizens/${id}/woreda-verify`, payload),
+  subcityApprove: (id: number | string, payload?: WorkflowActionPayload) => workflowPatch(`/citizens/${id}/subcity-approve`, payload),
+  generateId: (id: number | string, payload?: WorkflowActionPayload) => workflowPatch(`/citizens/${id}/generate-id`, payload),
+  activate: (id: number | string, payload?: WorkflowActionPayload) => workflowPatch(`/citizens/${id}/activate`, payload),
+  reject: (id: number | string, payload: WorkflowActionPayload) => workflowPatch(`/citizens/${id}/reject`, payload),
+  flag: (id: number | string, payload: WorkflowActionPayload) => workflowPatch(`/citizens/${id}/flag`, payload),
+  suspend: (id: number | string, payload: WorkflowActionPayload) => workflowPatch(`/citizens/${id}/suspend`, payload),
+
+  async verifyDocuments(id: number | string, payload: DocumentVerificationPayload = {}) {
+    const response = await api.patch(`/citizens/${id}/documents/verify`, payload);
+    return unwrap<ApiEnvelope<CitizenItem>>(response).data;
   },
 };
 

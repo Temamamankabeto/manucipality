@@ -22,37 +22,21 @@ const userBaseSchema = z.object({
   zone_id: nullableNumber,
 });
 
-const createBaseSchema = userBaseSchema.extend({
-  password: z.string().min(8, "Password must be at least 8 characters").max(255),
-});
-
 function validateAdminScope(value: any, ctx: z.RefinementCtx) {
   if (value.role !== "Admin") return;
-
-  if (!value.admin_level) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["admin_level"], message: "Admin level is required" });
-    return;
-  }
-
-  if (value.admin_level === "city" && !value.office_id) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["office_id"], message: "City is required" });
-  }
-
-  if (value.admin_level === "subcity" && !value.sub_city_id) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sub_city_id"], message: "Subcity is required" });
-  }
-
-  if (value.admin_level === "woreda" && !value.woreda_id) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["woreda_id"], message: "Woreda is required" });
-  }
-
-  if (value.admin_level === "zone" && !value.zone_id) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["zone_id"], message: "Zone is required" });
-  }
+  if (!value.admin_level) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["admin_level"], message: "Admin level is required" });
+  if (value.admin_level === "city" && !value.office_id) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["office_id"], message: "City is required" });
+  if (value.admin_level === "subcity" && !value.sub_city_id) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sub_city_id"], message: "Subcity is required" });
+  if (value.admin_level === "woreda" && !value.woreda_id) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["woreda_id"], message: "Woreda is required" });
+  if (value.admin_level === "zone" && !value.zone_id) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["zone_id"], message: "Zone is required" });
 }
 
-export const createUserSchema = createBaseSchema.superRefine(validateAdminScope) as unknown as z.ZodType<CreateUserPayload>;
-export const updateUserSchema = userBaseSchema.superRefine(validateAdminScope) as unknown as z.ZodType<UpdateUserPayload>;
+export const createUserSchema = userBaseSchema
+  .extend({ password: z.string().min(8, "Password must be at least 8 characters").max(255) })
+  .superRefine(validateAdminScope) as unknown as z.ZodType<CreateUserPayload>;
+
+export const updateUserSchema = userBaseSchema
+  .superRefine(validateAdminScope) as unknown as z.ZodType<UpdateUserPayload>;
 
 export const resetUserPasswordSchema = z.object({
   new_password: z.string().min(8, "Password must be at least 8 characters").max(255),

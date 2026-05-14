@@ -1,6 +1,5 @@
-import { BarChart3, Building2, LayoutDashboard, Map, ShieldCheck, UserCog } from "lucide-react";
+import { Building2, MapPinned, Shield, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { AdminLevel } from "@/types/user-management/user.type";
 
 export type AppRoleKey = "super-admin" | "admin-city" | "admin-subcity" | "admin-woreda" | "admin-zone";
 
@@ -11,7 +10,6 @@ export type DashboardDefinition = {
   subtitle: string;
   route: string;
   icon: LucideIcon;
-  metrics: Array<{ label: string; value: string; description: string }>;
 };
 
 export const roleHome: Record<AppRoleKey, string> = {
@@ -27,95 +25,60 @@ export const dashboardConfig: Record<AppRoleKey, DashboardDefinition> = {
     key: "super-admin",
     roleName: "Super Admin",
     title: "Super Admin Dashboard",
-    subtitle: "System-wide control for users, RBAC, offices, audit, and all municipality modules.",
+    subtitle: "System-wide municipality administration, RBAC, locations, citizen workflow and reports.",
     route: roleHome["super-admin"],
-    icon: ShieldCheck,
-    metrics: [
-      { label: "Total Users", value: "System", description: "All users across every administrative level" },
-      { label: "Administrative Levels", value: "4", description: "City, Subcity, Woreda, and Zone" },
-      { label: "RBAC Roles", value: "2", description: "Super Admin and Admin" },
-      { label: "Audit", value: "Enabled", description: "Track user and workflow actions" },
-    ],
+    icon: Shield,
   },
   "admin-city": {
     key: "admin-city",
-    roleName: "Admin • City level",
+    roleName: "City Admin",
     title: "City Admin Dashboard",
-    subtitle: "City-wide workspace for Adama administration and oversight.",
+    subtitle: "City-level citizen approval, unique ID generation and activation.",
     route: roleHome["admin-city"],
     icon: Building2,
-    metrics: [
-      { label: "Scope", value: "City", description: "Access across all subcities, woredas, and zones" },
-      { label: "Users", value: "Managed", description: "Create and manage scoped administrators" },
-      { label: "Citizens", value: "Overview", description: "Monitor registration workflow city-wide" },
-      { label: "Reports", value: "City", description: "Population and operational reporting" },
-    ],
   },
   "admin-subcity": {
     key: "admin-subcity",
-    roleName: "Admin • Subcity level",
+    roleName: "Subcity Admin",
     title: "Subcity Admin Dashboard",
-    subtitle: "Subcity-level workspace for validations, users, and citizen workflow follow-up.",
+    subtitle: "Subcity-level final approval and workflow monitoring.",
     route: roleHome["admin-subcity"],
-    icon: Map,
-    metrics: [
-      { label: "Scope", value: "Subcity", description: "Access limited to assigned subcity" },
-      { label: "Woredas", value: "Assigned", description: "Manage child woreda and zone administrators" },
-      { label: "Approvals", value: "Queue", description: "Review workflow items from woredas" },
-      { label: "Reports", value: "Subcity", description: "Local citizen and household reports" },
-    ],
+    icon: MapPinned,
   },
   "admin-woreda": {
     key: "admin-woreda",
-    roleName: "Admin • Woreda level",
+    roleName: "Woreda Admin",
     title: "Woreda Admin Dashboard",
-    subtitle: "Woreda-level workspace for registration validation and zone administration.",
+    subtitle: "Woreda document verification, data validation and duplicate detection.",
     route: roleHome["admin-woreda"],
-    icon: UserCog,
-    metrics: [
-      { label: "Scope", value: "Woreda", description: "Access limited to assigned woreda" },
-      { label: "Zones", value: "Assigned", description: "Manage zone administrators and local users" },
-      { label: "Verification", value: "Active", description: "Validate citizen data and documents" },
-      { label: "Duplicates", value: "Monitor", description: "Review duplicate alerts in your woreda" },
-    ],
+    icon: MapPinned,
   },
   "admin-zone": {
     key: "admin-zone",
-    roleName: "Admin • Zone level",
+    roleName: "Zone Admin",
     title: "Zone Admin Dashboard",
-    subtitle: "Zone-level workspace for citizen registration, profiling, and local updates.",
+    subtitle: "Zone-level citizen registration and submitted applications.",
     route: roleHome["admin-zone"],
-    icon: LayoutDashboard,
-    metrics: [
-      { label: "Scope", value: "Zone", description: "Access limited to assigned zone" },
-      { label: "Registration", value: "Local", description: "Register and update local citizen profiles" },
-      { label: "Households", value: "Local", description: "Maintain household relationships" },
-      { label: "Notifications", value: "Local", description: "Send registration and update alerts" },
-    ],
+    icon: Users,
   },
 };
 
 export const dashboardList = Object.values(dashboardConfig);
 
-export function normalizeRole(role?: string | null, adminLevel?: AdminLevel | string | null): AppRoleKey {
-  const value = String(role ?? "").toLowerCase().replace(/&/g, "and").replace(/_/g, " ").replace(/-/g, " ").trim();
+export function normalizeRole(role?: string | null, adminLevel?: string | null): AppRoleKey {
+  const value = String(role ?? "").toLowerCase().replace(/_/g, " ").replace(/-/g, " ").trim();
   const level = String(adminLevel ?? "").toLowerCase().replace(/_/g, " ").replace(/-/g, " ").trim();
 
-  if (value.includes("super") || value.includes("system admin") || value.includes("general admin")) return "super-admin";
-  if (value.includes("city admin") || value.includes("city dmin") || level === "city") return "admin-city";
-  if (value.includes("subcity") || value.includes("sub city") || level === "subcity") return "admin-subcity";
-  if (value.includes("woreda") || level === "woreda") return "admin-woreda";
-  if (value.includes("zone") || level === "zone") return "admin-zone";
-  if (value === "admin") return "admin-city";
+  if (value.includes("super")) return "super-admin";
+  if (level.includes("city")) return "admin-city";
+  if (level.includes("subcity") || level.includes("sub city")) return "admin-subcity";
+  if (level.includes("woreda")) return "admin-woreda";
+  if (level.includes("zone")) return "admin-zone";
+  if (value.includes("admin")) return "admin-zone";
 
   return "super-admin";
 }
 
-export function getDashboardForRole(role?: string | null, adminLevel?: AdminLevel | string | null) {
+export function getDashboardForRole(role?: string | null, adminLevel?: string | null) {
   return dashboardConfig[normalizeRole(role, adminLevel)];
-}
-
-export function getRoleFromRoute(role?: string | null): DashboardDefinition | null {
-  const key = String(role ?? "") as AppRoleKey;
-  return dashboardConfig[key] ?? null;
 }

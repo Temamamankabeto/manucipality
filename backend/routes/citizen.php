@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CitizenController;
 use App\Http\Controllers\Api\CitizenDocumentController;
+use App\Http\Controllers\Api\CitizenWorkflowController;
 use App\Http\Controllers\Api\OfficeController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +18,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('citizens')->group(function () {
+        Route::get('/workflow/pending', [CitizenWorkflowController::class, 'pending']);
+        Route::get('/duplicates', [CitizenWorkflowController::class, 'duplicates']);
         Route::get('/search/filter', [CitizenController::class, 'index']);
         Route::post('/validate-duplicate', [CitizenController::class, 'validateDuplicate']);
         Route::get('/check-national-id/{nationalId}', [CitizenController::class, 'checkNationalId']);
@@ -28,6 +31,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{citizen}', [CitizenController::class, 'update']);
         Route::delete('/{citizen}', [CitizenController::class, 'destroy']);
         Route::patch('/{citizen}/submit', [CitizenController::class, 'submit']);
+
+        Route::get('/{citizen}/workflow', [CitizenWorkflowController::class, 'workflow']);
+        Route::patch('/{citizen}/start-review', [CitizenWorkflowController::class, 'startReview']);
+        Route::patch('/{citizen}/documents/verify', [CitizenWorkflowController::class, 'verifyDocuments']);
+        Route::patch('/{citizen}/woreda-verify', [CitizenWorkflowController::class, 'woredaVerify']);
+        Route::patch('/{citizen}/subcity-approve', [CitizenWorkflowController::class, 'subcityApprove']);
+        Route::patch('/{citizen}/generate-id', [CitizenWorkflowController::class, 'generateId']);
+        Route::patch('/{citizen}/activate', [CitizenWorkflowController::class, 'activate']);
+        Route::patch('/{citizen}/reject', [CitizenWorkflowController::class, 'reject']);
+        Route::patch('/{citizen}/flag', [CitizenWorkflowController::class, 'flag']);
+        Route::patch('/{citizen}/suspend', [CitizenWorkflowController::class, 'suspend']);
 
         Route::post('/{citizen}/photo', [CitizenController::class, 'uploadPhoto']);
         Route::delete('/{citizen}/photo', [CitizenController::class, 'removePhoto']);
