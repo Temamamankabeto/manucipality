@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,11 +8,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import LocationCascader from "@/components/location/location-cascader";
 import { useDuplicateCitizenMutation } from "@/hooks/citizen/use-citizens";
-import { useAllOfficesQuery } from "@/hooks/location/use-offices";
 import { citizenSchema } from "@/lib/schemas/citizen.schema";
 import type { CitizenItem, CitizenPayload } from "@/types/citizen/citizen.type";
-import type { OfficeItem } from "@/types/location/office.type";
 
 const emptyForm: CitizenPayload = {
   national_id: "",
@@ -40,13 +39,7 @@ const emptyForm: CitizenPayload = {
   photo: null,
 };
 
-function officeName(offices: OfficeItem[], id: string | number) {
-  return offices.find((office) => String(office.id) === String(id))?.name ?? "";
-}
-
 export default function CitizenForm({ initial, loading, submitLabel = "Save citizen", onSubmit }: { initial?: CitizenItem | null; loading?: boolean; submitLabel?: string; onSubmit: (payload: CitizenPayload) => void }) {
-  const officeQuery = useAllOfficesQuery({ status: "active", all: true, per_page: 100 });
-  const offices = officeQuery.data ?? [];
   const duplicateCheck = useDuplicateCitizenMutation();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<CitizenPayload>(() => initial ? {
@@ -75,11 +68,6 @@ export default function CitizenForm({ initial, loading, submitLabel = "Save citi
     zone_id: initial.zone_id ?? "",
     photo: null,
   } : emptyForm);
-
-  const cityOptions = useMemo(() => offices.filter((office) => office.type === "city"), [offices]);
-  const subcityOptions = useMemo(() => offices.filter((office) => office.type === "subcity" && String(office.parent_id) === String(form.city_id)), [offices, form.city_id]);
-  const woredaOptions = useMemo(() => offices.filter((office) => office.type === "woreda" && String(office.parent_id) === String(form.subcity_id)), [offices, form.subcity_id]);
-  const zoneOptions = useMemo(() => offices.filter((office) => office.type === "zone" && String(office.parent_id) === String(form.woreda_id)), [offices, form.woreda_id]);
 
   function update<K extends keyof CitizenPayload>(key: K, value: CitizenPayload[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -128,32 +116,40 @@ export default function CitizenForm({ initial, loading, submitLabel = "Save citi
 
       <Card>
         <CardHeader><CardTitle>Address & Registration</CardTitle></CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <Field label="Registration Channel"><Select value={form.registration_channel} onValueChange={(value) => update("registration_channel", value as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="municipal_office">Municipal Office</SelectItem><SelectItem value="mobile_registration">Mobile Registration</SelectItem></SelectContent></Select></Field>
-          <Field label="City" error={errors.city_id}><Select value={String(form.city_id)} onValueChange={(value) => { update("city_id", value); update("subcity_id", ""); update("woreda_id", ""); update("zone_id", ""); }} disabled={officeQuery.isLoading}><SelectTrigger><SelectValue placeholder={officeQuery.isLoading ? "Loading cities..." : "Select city"} /></SelectTrigger><SelectContent>{cityOptions.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}</SelectContent></Select></Field>
-          <Field label="Subcity" error={errors.subcity_id}><Select value={String(form.subcity_id)} onValueChange={(value) => { update("subcity_id", value); update("woreda_id", ""); update("zone_id", ""); }} disabled={!form.city_id || officeQuery.isLoading}><SelectTrigger><SelectValue placeholder={!form.city_id ? "Select city first" : "Select subcity"} /></SelectTrigger><SelectContent>{subcityOptions.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}</SelectContent></Select></Field>
-          <Field label="Woreda" error={errors.woreda_id}><Select value={String(form.woreda_id)} onValueChange={(value) => { update("woreda_id", value); update("zone_id", ""); }} disabled={!form.subcity_id || officeQuery.isLoading}><SelectTrigger><SelectValue placeholder={!form.subcity_id ? "Select subcity first" : "Select woreda"} /></SelectTrigger><SelectContent>{woredaOptions.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}</SelectContent></Select></Field>
-          <Field label="Zone" error={errors.zone_id}><Select value={String(form.zone_id)} onValueChange={(value) => update("zone_id", value)} disabled={!form.woreda_id || officeQuery.isLoading}><SelectTrigger><SelectValue placeholder={!form.woreda_id ? "Select woreda first" : "Select zone"} /></SelectTrigger><SelectContent>{zoneOptions.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}</SelectContent></Select></Field>
-          <Field label="House Number"><Input value={form.house_number} onChange={(e) => update("house_number", e.target.value)} /></Field>
-          <div className="md:col-span-2"><Field label="Address" error={errors.address}><textarea className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm" value={form.address} onChange={(e) => update("address", e.target.value)} /></Field></div>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Registration Channel"><Select value={form.registration_channel} onValueChange={(value) => update("registration_channel", value as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="municipal_office">Municipal Office</SelectItem><SelectItem value="mobile_registration">Mobile Registration</SelectItem></SelectContent></Select></Field>
+            <Field label="House Number"><Input value={form.house_number} onChange={(e) => update("house_number", e.target.value)} /></Field>
+          </div>
+
+          <LocationCascader
+            requiredLevel="zone"
+            value={{ city_id: form.city_id, subcity_id: form.subcity_id, woreda_id: form.woreda_id, zone_id: form.zone_id }}
+            errors={{ city_id: errors.city_id, subcity_id: errors.subcity_id, woreda_id: errors.woreda_id, zone_id: errors.zone_id }}
+            onChange={(next) => setForm((current) => ({
+              ...current,
+              city_id: next.city_id ?? "",
+              subcity_id: next.subcity_id ?? "",
+              woreda_id: next.woreda_id ?? "",
+              zone_id: next.zone_id ?? "",
+            }))}
+          />
+
+          <Field label="Address" error={errors.address}><textarea className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm" value={form.address} onChange={(e) => update("address", e.target.value)} /></Field>
         </CardContent>
       </Card>
 
       {duplicateCheck.data ? (
         <Card className={duplicateCheck.data.has_duplicates ? "border-destructive" : "border-green-500"}>
-          <CardContent className="py-4 text-sm">
-            {duplicateCheck.data.has_duplicates ? `${duplicateCheck.data.matches.length} possible duplicate(s) found.` : "No duplicate found."}
-          </CardContent>
+          <CardContent className="py-4 text-sm">{duplicateCheck.data.has_duplicates ? `${duplicateCheck.data.matches.length} possible duplicate(s) found.` : "No duplicate found."}</CardContent>
         </Card>
       ) : null}
 
       <div className="flex flex-col gap-2 md:flex-row md:justify-end">
-        <Button type="button" variant="outline" onClick={checkDuplicates} disabled={!form.national_id && !form.phone || duplicateCheck.isPending}>
+        <Button type="button" variant="outline" onClick={checkDuplicates} disabled={(!form.national_id && !form.phone) || duplicateCheck.isPending}>
           {duplicateCheck.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Check duplicates
         </Button>
-        <Button disabled={loading}>
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {submitLabel}
-        </Button>
+        <Button disabled={loading}>{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {submitLabel}</Button>
       </div>
     </form>
   );

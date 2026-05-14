@@ -1,19 +1,28 @@
 import { z } from "zod";
+import type { OfficePayload } from "@/types/location/office.type";
 
-export const officeSchema = z.object({
-  name: z.string().min(1, "Name is required").max(150),
-  code: z.string().max(80).optional().or(z.literal("")),
+const nullableParent = z.preprocess((value) => {
+  if (value === "" || value === undefined || value === null || value === "none") return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? value : parsed;
+}, z.number().int().positive().nullable().optional());
+
+const baseOfficeSchema = z.object({
+  name: z.string().trim().min(2, "Name is required").max(150),
+  code: z.string().trim().max(80).optional().or(z.literal("")),
   type: z.enum(["city", "subcity", "woreda", "zone"]),
-  parent_id: z.union([z.string(), z.number()]).nullable().optional(),
-  is_active: z.boolean().optional(),
-}).superRefine((value, ctx) => {
-  if (value.type !== "city" && (!value.parent_id || String(value.parent_id) === "")) {
+  parent_id: nullableParent,
+  is_active: z.boolean().optional().default(true),
+});
+
+export const officeSchema = baseOfficeSchema.superRefine((value, ctx) => {
+  if (value.type === "city") return;
+
+  if (!value.parent_id) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["parent_id"],
-      message: "Parent office is required",
+      message: "Parent location is required",
     });
   }
-});
-
-export type OfficeFormValues = z.infer<typeof officeSchema>;
+}) as unknown as z.ZodType<OfficePayload>;

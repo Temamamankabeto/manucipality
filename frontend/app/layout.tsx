@@ -3,8 +3,8 @@ import "./globals.css";
 import Providers from "@/providers/AppProviders";
 
 export const metadata: Metadata = {
-  title: "AIG Cafeteria Management",
-  description: "Role-based cafeteria management starter",
+  title: "Manucipality Authomation",
+  description: "Role-based Manucipality Authomation",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
