@@ -2,6 +2,7 @@ export {
   useUsersQuery,
   useUserQuery,
   useRolesLiteQuery,
+  useRolesLiteQuery as useUserRolesLiteQuery,
   useOfficesLiteQuery,
   useCreateUserMutation,
   useUpdateUserMutation,
@@ -9,15 +10,21 @@ export {
   useToggleUserMutation,
   useResetUserPasswordMutation,
   useAssignUserRoleMutation,
+} from "./use-users";
+
+export {
   useRolesQuery,
+  useRolePermissionsQuery,
   useCreateRoleMutation,
   useUpdateRoleMutation,
-  useAvailableRolePermissionsQuery,
-  useRolePermissionsQuery,
   useAssignRolePermissionsMutation,
+  useAvailableRolePermissionsQuery,
+} from "./use-roles";
+
+export {
   usePermissionsQuery,
   useAllPermissionsQuery,
   useCreatePermissionMutation,
   useUpdatePermissionMutation,
   useDeletePermissionMutation,
-} from "./use-users";
+} from "./use-permissions";

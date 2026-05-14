@@ -10,18 +10,24 @@ export {
   useToggleUserMutation,
   useResetUserPasswordMutation,
   useAssignUserRoleMutation,
+} from "@/hooks/user/use-users";
+
+export {
   useRolesQuery,
+  useRolePermissionsQuery,
   useCreateRoleMutation,
   useUpdateRoleMutation,
-  useAvailableRolePermissionsQuery,
-  useRolePermissionsQuery,
   useAssignRolePermissionsMutation,
+  useAvailableRolePermissionsQuery,
+} from "@/hooks/user/use-roles";
+
+export {
   usePermissionsQuery,
   useAllPermissionsQuery,
   useCreatePermissionMutation,
   useUpdatePermissionMutation,
   useDeletePermissionMutation,
-} from "@/hooks/user/use-users";
+} from "@/hooks/user/use-permissions";
 
 export {
   useCitizensQuery,

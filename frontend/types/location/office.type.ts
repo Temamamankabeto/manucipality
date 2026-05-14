@@ -42,8 +42,8 @@ export type OfficeItem = {
 export type OfficeListParams = {
   search?: string;
   type?: OfficeType | "all";
-  parent_id?: number | string | null;
   status?: OfficeStatusFilter;
+  parent_id?: number | string | null;
   all?: boolean;
   page?: number;
   per_page?: number;
