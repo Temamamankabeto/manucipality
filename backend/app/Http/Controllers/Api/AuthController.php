@@ -23,11 +23,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $validator->errors()], 422);
         }
 
         $user = User::create([
@@ -45,100 +41,47 @@ class AuthController extends Controller
 
         $accessToken = $user->createToken('municipality-api-token')->plainTextToken;
         $refreshToken = Str::random(64);
+        $user->forceFill(['refresh_token' => hash('sha256', $refreshToken), 'refresh_token_expires_at' => now()->addDays(30)])->save();
 
-        $user->forceFill([
-            'refresh_token' => hash('sha256', $refreshToken),
-            'refresh_token_expires_at' => now()->addDays(30),
-        ])->save();
-
-        return response()->json($this->authPayload($user, $accessToken, $refreshToken), 201)
-            ->cookie($this->refreshCookie($refreshToken));
+        return response()->json($this->authPayload($user->fresh(['office','subCity','woreda','zone']), $accessToken, $refreshToken), 201)->cookie($this->refreshCookie($refreshToken));
     }
 
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
-
-        $user = User::with('office')->where('email', $request->email)->first();
+        $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
+        $user = User::with(['office','subCity','woreda','zone'])->where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Invalid email or password.'],
-            ]);
+            throw ValidationException::withMessages(['email' => ['Invalid email or password.']]);
         }
-
         if (! $user->is_active) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Your account is disabled. Please contact the administrator.',
-            ], 403);
+            return response()->json(['success' => false, 'message' => 'Your account is disabled. Please contact the administrator.'], 403);
         }
 
         $accessToken = $user->createToken('municipality-api-token')->plainTextToken;
         $refreshToken = Str::random(64);
+        $user->forceFill(['refresh_token' => hash('sha256', $refreshToken), 'refresh_token_expires_at' => now()->addDays(30), 'last_login_at' => now()])->save();
 
-        $user->forceFill([
-            'refresh_token' => hash('sha256', $refreshToken),
-            'refresh_token_expires_at' => now()->addDays(30),
-            'last_login_at' => now(),
-        ])->save();
-
-        return response()->json($this->authPayload($user->fresh('office'), $accessToken, $refreshToken))
-            ->cookie($this->refreshCookie($refreshToken));
+        return response()->json($this->authPayload($user->fresh(['office','subCity','woreda','zone']), $accessToken, $refreshToken))->cookie($this->refreshCookie($refreshToken));
     }
 
     public function me(Request $request)
     {
-        $user = $request->user()->load('office');
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Authenticated user retrieved successfully',
-            'data' => $this->userPayload($user),
-            'user' => $this->userPayload($user),
-            'roles' => $user->getRoleNames()->values()->all(),
-            'permissions' => $user->getAllPermissions()->pluck('name')->values()->all(),
-        ]);
+        $user = $request->user()->load(['office','subCity','woreda','zone']);
+        return response()->json(['success' => true, 'message' => 'Authenticated user retrieved successfully', 'data' => $this->userPayload($user), 'user' => $this->userPayload($user), 'roles' => $user->getRoleNames()->values()->all(), 'permissions' => $user->getAllPermissions()->pluck('name')->values()->all()]);
     }
 
     public function logout(Request $request)
     {
         $user = $request->user();
-
         $user?->currentAccessToken()?->delete();
-        $user?->forceFill([
-            'refresh_token' => null,
-            'refresh_token_expires_at' => null,
-        ])->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Logged out successfully',
-            'data' => null,
-        ])->withoutCookie('refresh_token');
+        $user?->forceFill(['refresh_token' => null, 'refresh_token_expires_at' => null])->save();
+        return response()->json(['success' => true, 'message' => 'Logged out successfully', 'data' => null])->withoutCookie('refresh_token');
     }
 
     protected function authPayload(User $user, string $accessToken, string $refreshToken): array
     {
-        return [
-            'success' => true,
-            'message' => 'Authenticated successfully',
-            'data' => [
-                'token' => $accessToken,
-                'refresh_token' => $refreshToken,
-                'user' => $this->userPayload($user),
-                'roles' => $user->getRoleNames()->values()->all(),
-                'permissions' => $user->getAllPermissions()->pluck('name')->values()->all(),
-            ],
-            'token' => $accessToken,
-            'refresh_token' => $refreshToken,
-            'user' => $this->userPayload($user),
-            'roles' => $user->getRoleNames()->values()->all(),
-            'permissions' => $user->getAllPermissions()->pluck('name')->values()->all(),
-        ];
+        return ['success' => true, 'message' => 'Authenticated successfully', 'data' => ['token' => $accessToken, 'refresh_token' => $refreshToken, 'user' => $this->userPayload($user), 'roles' => $user->getRoleNames()->values()->all(), 'permissions' => $user->getAllPermissions()->pluck('name')->values()->all()], 'token' => $accessToken, 'refresh_token' => $refreshToken, 'user' => $this->userPayload($user), 'roles' => $user->getRoleNames()->values()->all(), 'permissions' => $user->getAllPermissions()->pluck('name')->values()->all()];
     }
 
     protected function userPayload(User $user): array
@@ -152,29 +95,28 @@ class AuthController extends Controller
             'status' => $user->is_active ? 'active' : 'disabled',
             'office_id' => $user->office_id,
             'admin_level' => $user->admin_level,
-            'office' => $user->office ? [
-                'id' => $user->office->id,
-                'name' => $user->office->name,
-                'code' => $user->office->code,
-                'type' => $user->office->type,
-                'parent_id' => $user->office->parent_id,
-            ] : null,
+            'sub_city_id' => $user->sub_city_id,
+            'subcity_id' => $user->sub_city_id,
+            'woreda_id' => $user->woreda_id,
+            'zone_id' => $user->zone_id,
+            'office' => $this->officePayload($user->office),
+            'sub_city' => $this->officePayload($user->subCity),
+            'subcity' => $this->officePayload($user->subCity),
+            'woreda' => $this->officePayload($user->woreda),
+            'zone' => $this->officePayload($user->zone),
             'last_login_at' => optional($user->last_login_at)->toISOString(),
             'roles' => $user->getRoleNames()->values()->all(),
             'permissions' => $user->getAllPermissions()->pluck('name')->values()->all(),
         ];
     }
 
+    protected function officePayload($office): ?array
+    {
+        return $office ? ['id' => $office->id, 'name' => $office->name, 'code' => $office->code, 'type' => $office->type, 'parent_id' => $office->parent_id] : null;
+    }
+
     protected function refreshCookie(string $refreshToken)
     {
-        return cookie(
-            'refresh_token',
-            $refreshToken,
-            60 * 24 * 30,
-            '/',
-            null,
-            app()->environment('production'),
-            true
-        )->withSameSite('Lax');
+        return cookie('refresh_token', $refreshToken, 60 * 24 * 30, '/', null, app()->environment('production'), true)->withSameSite('Lax');
     }
 }

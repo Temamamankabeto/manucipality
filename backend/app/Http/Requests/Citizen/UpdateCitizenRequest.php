@@ -33,10 +33,10 @@ class UpdateCitizenRequest extends FormRequest
             'registration_channel' => ['nullable', Rule::in(['municipal_office', 'mobile_registration'])],
             'address' => ['required', 'string', 'max:1000'],
             'house_number' => ['nullable', 'string', 'max:100'],
-            'city_id' => ['required', 'integer', 'exists:offices,id'],
-            'subcity_id' => ['required', 'integer', 'exists:offices,id'],
-            'woreda_id' => ['required', 'integer', 'exists:offices,id'],
-            'zone_id' => ['required', 'integer', 'exists:offices,id'],
+            'city_id' => ['nullable', 'integer', 'exists:offices,id'],
+            'subcity_id' => ['nullable', 'integer', 'exists:offices,id'],
+            'woreda_id' => ['nullable', 'integer', 'exists:offices,id'],
+            'zone_id' => ['nullable', 'integer', 'exists:offices,id'],
             'photo' => ['nullable', 'image', 'max:4096'],
         ];
     }

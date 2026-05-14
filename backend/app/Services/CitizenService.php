@@ -65,6 +65,7 @@ class CitizenService
 
     public function createCitizen(array $data, User $actor, ?UploadedFile $photo = null): Citizen
     {
+        $data = $this->applyAuthenticatedLocationScope($data, $actor);
         $this->assertOfficePayloadAllowed($data, $actor);
 
         return DB::transaction(function () use ($data, $actor, $photo) {
@@ -109,6 +110,7 @@ class CitizenService
     public function updateCitizen(Citizen $citizen, array $data, User $actor, ?UploadedFile $photo = null): Citizen
     {
         $this->assertCanAccess($citizen, $actor);
+        $data = $this->applyAuthenticatedLocationScope($data, $actor, $citizen);
         $this->assertOfficePayloadAllowed($data, $actor);
 
         return DB::transaction(function () use ($citizen, $data, $actor, $photo) {
@@ -137,16 +139,12 @@ class CitizenService
         $this->assertCanAccess($citizen, $actor);
 
         if ($citizen->status !== Citizen::STATUS_DRAFT) {
-            throw ValidationException::withMessages([
-                'status' => ['Only draft registrations can be submitted.'],
-            ]);
+            throw ValidationException::withMessages(['status' => ['Only draft registrations can be submitted.']]);
         }
 
         $missingDocuments = $this->missingRequiredDocuments($citizen);
         if ($missingDocuments !== []) {
-            throw ValidationException::withMessages([
-                'documents' => ['Missing required documents: ' . implode(', ', $missingDocuments)],
-            ]);
+            throw ValidationException::withMessages(['documents' => ['Missing required documents: ' . implode(', ', $missingDocuments)]]);
         }
 
         $from = $citizen->status;
@@ -166,9 +164,7 @@ class CitizenService
         $this->assertCanAccess($citizen, $actor);
         $this->deletePublicFile($citizen->photo_path);
 
-        $citizen->forceFill([
-            'photo_path' => $photo->store('citizens/photos', 'public'),
-        ])->save();
+        $citizen->forceFill(['photo_path' => $photo->store('citizens/photos', 'public')])->save();
 
         return $this->getCitizen($citizen->id, $actor);
     }
@@ -205,7 +201,7 @@ class CitizenService
     {
         $this->assertCanAccess($citizen, $actor);
 
-        if ($document->citizen_id !== $citizen->id) {
+        if ((int) $document->citizen_id !== (int) $citizen->id) {
             throw new AuthorizationException('Document does not belong to this citizen.');
         }
 
@@ -235,7 +231,7 @@ class CitizenService
     {
         $this->assertCanAccess($citizen, $actor);
 
-        if ($document->citizen_id !== $citizen->id) {
+        if ((int) $document->citizen_id !== (int) $citizen->id) {
             throw new AuthorizationException('Document does not belong to this citizen.');
         }
 
@@ -325,6 +321,77 @@ class CitizenService
         }
     }
 
+    protected function applyAuthenticatedLocationScope(array $data, User $actor, ?Citizen $citizen = null): array
+    {
+        if ($actor->hasRole('Super Admin')) {
+            if ($this->hasCompleteLocation($data)) {
+                return $data;
+            }
+
+            if ($citizen) {
+                return array_merge($data, [
+                    'city_id' => $citizen->city_id,
+                    'subcity_id' => $citizen->subcity_id,
+                    'woreda_id' => $citizen->woreda_id,
+                    'zone_id' => $citizen->zone_id,
+                ]);
+            }
+
+            throw ValidationException::withMessages([
+                'location' => ['Location is required when Super Admin creates a citizen. Use a scoped Zone Admin for zone-based registration.'],
+            ]);
+        }
+
+        $scope = $this->actorLocationScope($actor);
+
+        foreach (['city_id', 'subcity_id', 'woreda_id', 'zone_id'] as $field) {
+            if (empty($scope[$field])) {
+                throw ValidationException::withMessages([
+                    $field => ['Your account is missing a complete administrative location scope. Contact the system administrator.'],
+                ]);
+            }
+        }
+
+        return array_merge($data, $scope);
+    }
+
+    protected function actorLocationScope(User $actor): array
+    {
+        $scope = [
+            'city_id' => null,
+            'subcity_id' => $actor->sub_city_id,
+            'woreda_id' => $actor->woreda_id,
+            'zone_id' => $actor->zone_id,
+        ];
+
+        $office = $actor->office_id ? Office::query()->with('parent.parent.parent')->find($actor->office_id) : null;
+        $current = $office;
+
+        while ($current) {
+            if ($current->type === Office::TYPE_CITY) {
+                $scope['city_id'] = $current->id;
+            } elseif ($current->type === Office::TYPE_SUBCITY) {
+                $scope['subcity_id'] = $scope['subcity_id'] ?: $current->id;
+            } elseif ($current->type === Office::TYPE_WOREDA) {
+                $scope['woreda_id'] = $scope['woreda_id'] ?: $current->id;
+            } elseif ($current->type === Office::TYPE_ZONE) {
+                $scope['zone_id'] = $scope['zone_id'] ?: $current->id;
+            }
+
+            $current = $current->parent;
+        }
+
+        return $scope;
+    }
+
+    protected function hasCompleteLocation(array $data): bool
+    {
+        return filled($data['city_id'] ?? null)
+            && filled($data['subcity_id'] ?? null)
+            && filled($data['woreda_id'] ?? null)
+            && filled($data['zone_id'] ?? null);
+    }
+
     protected function canAccess(Citizen $citizen, User $actor): bool
     {
         if ($actor->hasRole('Super Admin')) {
@@ -388,26 +455,10 @@ class CitizenService
     protected function citizenPayload(array $data): array
     {
         return Arr::only($data, [
-            'national_id',
-            'first_name',
-            'middle_name',
-            'last_name',
-            'gender',
-            'date_of_birth',
-            'place_of_birth',
-            'nationality',
-            'marital_status',
-            'phone',
-            'email',
-            'occupation',
-            'education_level',
-            'disability_status',
-            'emergency_contact',
-            'registration_channel',
-            'city_id',
-            'subcity_id',
-            'woreda_id',
-            'zone_id',
+            'national_id', 'first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth',
+            'place_of_birth', 'nationality', 'marital_status', 'phone', 'email', 'occupation',
+            'education_level', 'disability_status', 'emergency_contact', 'registration_channel',
+            'city_id', 'subcity_id', 'woreda_id', 'zone_id',
         ]);
     }
 
@@ -450,7 +501,7 @@ class CitizenService
     protected function nextRegistrationNumber(): string
     {
         $prefix = 'CIT-' . now()->format('Y');
-        $next = (Citizen::query()->where('registration_number', 'like', $prefix . '-%')->count() + 1);
+        $next = Citizen::query()->where('registration_number', 'like', $prefix . '-%')->count() + 1;
 
         return $prefix . '-' . str_pad((string) $next, 6, '0', STR_PAD_LEFT);
     }
