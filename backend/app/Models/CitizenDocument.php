@@ -16,18 +16,14 @@ class CitizenDocument extends Model
     public const TYPE_KEBELE_LETTER = 'kebele_letter';
     public const TYPE_PASSPORT_PHOTO = 'passport_photo';
 
+    public const VERIFICATION_PENDING = 'pending';
+    public const VERIFICATION_VALID = 'valid';
+    public const VERIFICATION_INVALID = 'invalid';
+
     protected $fillable = [
-        'citizen_id',
-        'type',
-        'title',
-        'file_path',
-        'original_name',
-        'mime_type',
-        'size',
-        'is_required',
-        'uploaded_by',
-        'verified_at',
-        'metadata',
+        'citizen_id', 'type', 'title', 'file_path', 'original_name', 'mime_type', 'size',
+        'is_required', 'uploaded_by', 'verified_at', 'verification_status', 'verification_remarks',
+        'verified_by', 'metadata',
     ];
 
     protected $casts = [
@@ -46,6 +42,11 @@ class CitizenDocument extends Model
     public function uploadedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function verifiedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'verified_by');
     }
 
     public function getFileUrlAttribute(): ?string

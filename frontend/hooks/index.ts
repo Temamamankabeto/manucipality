@@ -1,55 +1,61 @@
 export {
-  useAssignUserRoleMutation,
-  useCreateUserMutation,
-  useDeleteUserMutation,
-  useOfficesLiteQuery,
-  useResetUserPasswordMutation,
+  useUsersQuery,
+  useUserQuery,
   useRolesLiteQuery,
   useRolesLiteQuery as useUserRolesLiteQuery,
-  useToggleUserMutation,
+  useOfficesLiteQuery,
+  useCreateUserMutation,
   useUpdateUserMutation,
-  useUserQuery,
-  useUsersQuery,
-  userManagementKeys,
-} from "@/hooks/user/use-users";
-
-export {
-  useAssignRolePermissionsMutation,
-  useCreateRoleMutation,
-  useRolePermissionsQuery,
+  useDeleteUserMutation,
+  useToggleUserMutation,
+  useResetUserPasswordMutation,
+  useAssignUserRoleMutation,
   useRolesQuery,
+  useCreateRoleMutation,
   useUpdateRoleMutation,
-} from "@/hooks/user/use-roles";
-
-export {
+  useAvailableRolePermissionsQuery,
+  useRolePermissionsQuery,
+  useAssignRolePermissionsMutation,
+  usePermissionsQuery,
   useAllPermissionsQuery,
   useCreatePermissionMutation,
-  useDeletePermissionMutation,
-  usePermissionsQuery,
   useUpdatePermissionMutation,
-} from "@/hooks/user/use-permissions";
-
-export { useAuditLogsQuery } from "@/hooks/user/use-audit-logs";
+  useDeletePermissionMutation,
+} from "@/hooks/user/use-users";
 
 export {
   useCitizensQuery,
   useCitizenQuery,
   useCreateCitizenMutation,
-  useDeleteCitizenDocumentMutation,
-  useDeleteCitizenMutation,
-  useDuplicateCitizenMutation,
-  useSubmitCitizenMutation,
   useUpdateCitizenMutation,
+  useDeleteCitizenMutation,
+  useSubmitCitizenMutation,
   useUploadCitizenDocumentMutation,
+  useDeleteCitizenDocumentMutation,
+  useDuplicateCitizenMutation,
+  useCitizenWorkflowQueueQuery,
+  useCitizenWorkflowQuery,
+  useCitizenDuplicateFlagsQuery,
+  useStartCitizenReviewMutation,
+  useVerifyCitizenDocumentsMutation,
+  useWoredaVerifyCitizenMutation,
+  useSubcityApproveCitizenMutation,
+  useGenerateCitizenIdMutation,
+  useActivateCitizenMutation,
+  useRejectCitizenMutation,
+  useFlagCitizenMutation,
+  useSuspendCitizenMutation,
 } from "@/hooks/citizen/use-citizens";
 
 export {
-  useAllOfficesQuery,
-  useCreateOfficeMutation,
-  useDeleteOfficeMutation,
   useOfficesQuery,
-  useOfficeQuery,
+  useAllOfficesQuery,
   useOfficeTreeQuery,
-  useToggleOfficeMutation,
+  useOfficeQuery,
+  useCreateOfficeMutation,
   useUpdateOfficeMutation,
+  useToggleOfficeMutation,
+  useDeleteOfficeMutation,
 } from "@/hooks/location/use-offices";
+
+export { useAuditLogsQuery } from "@/hooks/user/use-audit-logs";

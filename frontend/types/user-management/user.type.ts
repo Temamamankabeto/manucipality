@@ -1,47 +1,15 @@
 import type { OfficeItem } from "@/types/location/office.type";
 
-export type { OfficeItem } from "@/types/location/office.type";
-
-export type ApiEnvelope<T> = {
-  success: boolean;
-  message?: string;
-  data: T;
-  meta?: unknown;
-};
-
-export type PaginationMeta = {
-  current_page: number;
-  per_page: number;
-  total: number;
-  last_page: number;
-};
-
-export type PaginatedResponse<T> = {
-  success?: boolean;
-  message?: string;
-  data: T[];
-  meta: PaginationMeta;
-};
+export type ApiEnvelope<T> = { success: boolean; message?: string; data: T; meta?: unknown };
+export type PaginationMeta = { current_page: number; per_page: number; total: number; last_page: number };
+export type PaginatedResponse<T> = { success?: boolean; message?: string; data: T[]; meta: PaginationMeta };
 
 export type AdminLevel = "city" | "subcity" | "woreda" | "zone";
 export type UserStatus = "active" | "disabled";
 export type UserRoleName = "Super Admin" | "Admin";
 
-export type RoleItem = {
-  id: number;
-  name: UserRoleName | string;
-  guard_name?: string;
-  created_at?: string;
-  updated_at?: string;
-};
-
-export type PermissionItem = {
-  id: number;
-  name: string;
-  guard_name?: string;
-  created_at?: string;
-  updated_at?: string;
-};
+export type RoleItem = { id: number; name: UserRoleName | string; guard_name?: string; created_at?: string; updated_at?: string };
+export type PermissionItem = { id: number; name: string; guard_name?: string; created_at?: string; updated_at?: string };
 
 export type UserItem = {
   id: number;
@@ -97,15 +65,10 @@ export type CreateUserPayload = {
 export type UpdateUserPayload = Omit<CreateUserPayload, "password">;
 export type AssignUserRolePayload = { role: UserRoleName | string };
 export type ResetUserPasswordPayload = { new_password: string };
-
 export type RoleListParams = { search?: string; page?: number; per_page?: number };
 export type RolePayload = { name: UserRoleName | string };
 export type AssignRolePermissionsPayload = { permissions: string[] };
 export type PermissionListParams = { search?: string; all?: boolean; page?: number; per_page?: number };
 export type PermissionPayload = { name: string };
-
-export type RolePermissionResult = {
-  role_id: number | string;
-  assigned_count: number;
-  permissions: string[];
-};
+export type RolePermissionResult = { role_id: number | string; assigned_count: number; permissions: string[] };
+export type { OfficeItem };

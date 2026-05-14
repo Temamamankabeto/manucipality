@@ -10,14 +10,11 @@ export type AuthUser = {
   roles?: string[];
   permissions?: string[];
   admin_level?: string | null;
-  office_id?: number | string | null;
-  office?: { id?: number | string; name?: string; code?: string; type?: string; parent_id?: number | string | null } | null;
 };
 
 type LoginResponse = {
   token?: string;
   access_token?: string;
-  refresh_token?: string;
   user?: AuthUser;
   roles?: string[];
   permissions?: string[];
@@ -41,10 +38,7 @@ function deleteCookie(name: string) {
 }
 
 function clearAuthCookies() {
-  deleteCookie("token");
-  deleteCookie("roles");
-  deleteCookie("permissions");
-  deleteCookie("user");
+  ["token", "roles", "permissions", "user", "refresh_token"].forEach(deleteCookie);
 }
 
 export const authService = {
@@ -53,39 +47,24 @@ export const authService = {
     return normalizeLoginResponse(unwrap<LoginResponse>(response));
   },
 
-
   async me() {
     const response = await api.get("/auth/me");
     return unwrap<AuthUser>(response);
   },
 
   async logout() {
-    try {
-      await api.post("/auth/logout");
-    } finally {
-      clearSession();
-      clearAuthCookies();
-    }
+    try { await api.post("/auth/logout"); } finally { clearSession(); clearAuthCookies(); }
   },
 
   saveSession(response: LoginResponse) {
     if (typeof window === "undefined") return;
     const token = response.token ?? response.access_token ?? response.data?.token ?? response.data?.access_token;
-    const refreshToken = response.refresh_token ?? response.data?.refresh_token;
     const user = response.user ?? response.data?.user ?? null;
     const roles = response.roles ?? response.data?.roles ?? user?.roles ?? (user?.role ? [user.role] : []);
     const permissions = response.permissions ?? response.data?.permissions ?? user?.permissions ?? [];
 
-    if (token) {
-      localStorage.setItem("token", token);
-      setCookie("token", token);
-    }
-    if (refreshToken) localStorage.setItem("refresh_token", refreshToken);
-    if (user) {
-      localStorage.setItem("user", JSON.stringify(user));
-      setCookie("user", user);
-    }
-
+    if (token) { localStorage.setItem("token", token); setCookie("token", token); }
+    if (user) { localStorage.setItem("user", JSON.stringify(user)); setCookie("user", user); }
     localStorage.setItem("roles", JSON.stringify(roles));
     localStorage.setItem("permissions", JSON.stringify(permissions));
     setCookie("roles", roles);
