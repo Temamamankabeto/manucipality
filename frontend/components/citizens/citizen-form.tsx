@@ -8,9 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useDuplicateCitizenMutation, useOfficesQuery } from "@/hooks/citizen/use-citizens";
+import { useDuplicateCitizenMutation } from "@/hooks/citizen/use-citizens";
+import { useAllOfficesQuery } from "@/hooks/location/use-offices";
 import { citizenSchema } from "@/lib/schemas/citizen.schema";
-import type { CitizenItem, CitizenPayload, OfficeItem } from "@/types/citizen/citizen.type";
+import type { CitizenItem, CitizenPayload } from "@/types/citizen/citizen.type";
+import type { OfficeItem } from "@/types/location/office.type";
 
 const emptyForm: CitizenPayload = {
   national_id: "",
@@ -43,7 +45,7 @@ function officeName(offices: OfficeItem[], id: string | number) {
 }
 
 export default function CitizenForm({ initial, loading, submitLabel = "Save citizen", onSubmit }: { initial?: CitizenItem | null; loading?: boolean; submitLabel?: string; onSubmit: (payload: CitizenPayload) => void }) {
-  const officeQuery = useOfficesQuery();
+  const officeQuery = useAllOfficesQuery({ status: "active", all: true, per_page: 100 });
   const offices = officeQuery.data ?? [];
   const duplicateCheck = useDuplicateCitizenMutation();
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -128,10 +130,10 @@ export default function CitizenForm({ initial, loading, submitLabel = "Save citi
         <CardHeader><CardTitle>Address & Registration</CardTitle></CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <Field label="Registration Channel"><Select value={form.registration_channel} onValueChange={(value) => update("registration_channel", value as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="municipal_office">Municipal Office</SelectItem><SelectItem value="mobile_registration">Mobile Registration</SelectItem></SelectContent></Select></Field>
-          <Field label="City" error={errors.city_id}><Select value={String(form.city_id)} onValueChange={(value) => update("city_id", value)}><SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger><SelectContent>{cityOptions.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}</SelectContent></Select></Field>
-          <Field label="Subcity" error={errors.subcity_id}><Select value={String(form.subcity_id)} onValueChange={(value) => { update("subcity_id", value); update("woreda_id", ""); update("zone_id", ""); }}><SelectTrigger><SelectValue placeholder="Select subcity" /></SelectTrigger><SelectContent>{subcityOptions.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}</SelectContent></Select></Field>
-          <Field label="Woreda" error={errors.woreda_id}><Select value={String(form.woreda_id)} onValueChange={(value) => { update("woreda_id", value); update("zone_id", ""); }}><SelectTrigger><SelectValue placeholder="Select woreda" /></SelectTrigger><SelectContent>{woredaOptions.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}</SelectContent></Select></Field>
-          <Field label="Zone" error={errors.zone_id}><Select value={String(form.zone_id)} onValueChange={(value) => update("zone_id", value)}><SelectTrigger><SelectValue placeholder="Select zone" /></SelectTrigger><SelectContent>{zoneOptions.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}</SelectContent></Select></Field>
+          <Field label="City" error={errors.city_id}><Select value={String(form.city_id)} onValueChange={(value) => { update("city_id", value); update("subcity_id", ""); update("woreda_id", ""); update("zone_id", ""); }} disabled={officeQuery.isLoading}><SelectTrigger><SelectValue placeholder={officeQuery.isLoading ? "Loading cities..." : "Select city"} /></SelectTrigger><SelectContent>{cityOptions.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}</SelectContent></Select></Field>
+          <Field label="Subcity" error={errors.subcity_id}><Select value={String(form.subcity_id)} onValueChange={(value) => { update("subcity_id", value); update("woreda_id", ""); update("zone_id", ""); }} disabled={!form.city_id || officeQuery.isLoading}><SelectTrigger><SelectValue placeholder={!form.city_id ? "Select city first" : "Select subcity"} /></SelectTrigger><SelectContent>{subcityOptions.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}</SelectContent></Select></Field>
+          <Field label="Woreda" error={errors.woreda_id}><Select value={String(form.woreda_id)} onValueChange={(value) => { update("woreda_id", value); update("zone_id", ""); }} disabled={!form.subcity_id || officeQuery.isLoading}><SelectTrigger><SelectValue placeholder={!form.subcity_id ? "Select subcity first" : "Select woreda"} /></SelectTrigger><SelectContent>{woredaOptions.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}</SelectContent></Select></Field>
+          <Field label="Zone" error={errors.zone_id}><Select value={String(form.zone_id)} onValueChange={(value) => update("zone_id", value)} disabled={!form.woreda_id || officeQuery.isLoading}><SelectTrigger><SelectValue placeholder={!form.woreda_id ? "Select woreda first" : "Select zone"} /></SelectTrigger><SelectContent>{zoneOptions.map((office) => <SelectItem key={office.id} value={String(office.id)}>{office.name}</SelectItem>)}</SelectContent></Select></Field>
           <Field label="House Number"><Input value={form.house_number} onChange={(e) => update("house_number", e.target.value)} /></Field>
           <div className="md:col-span-2"><Field label="Address" error={errors.address}><textarea className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm" value={form.address} onChange={(e) => update("address", e.target.value)} /></Field></div>
         </CardContent>

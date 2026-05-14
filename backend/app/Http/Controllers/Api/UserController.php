@@ -144,17 +144,6 @@ class UserController extends Controller
         ]);
     }
 
-    public function waitersLite(Request $request): JsonResponse
-    {
-        $this->authorize('waitersLite', User::class);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Users retrieved successfully',
-            'data' => $this->userService->getWaitersLite($request->get('search')),
-            'meta' => null,
-        ]);
-    }
 
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {

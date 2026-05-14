@@ -244,10 +244,6 @@ class UserService
         return $user;
     }
 
-    public function getWaitersLite(?string $search = null)
-    {
-        return collect();
-    }
 
     public function updateProfile(User $user, array $data, ?UploadedFile $profileFile = null): User
     {

@@ -93,11 +93,6 @@ export const userService = {
     return Array.isArray(body?.data) ? (body.data as OfficeItem[]) : [];
   },
 
-  async waitersLite(search?: string) {
-    const response = await api.get("/admin/users/waiters-lite", { params: cleanParams({ search }) });
-    const body = response.data;
-    return Array.isArray(body?.data) ? (body.data as UserItem[]) : [];
-  },
 
   async roles(params: RoleListParams = {}) {
     const response = await api.get("/admin/roles", { params: cleanParams(params) });

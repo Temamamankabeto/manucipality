@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { dashboardConfig, type AppRoleKey } from "@/config/dashboard.config";
+import { getRoleFromRoute } from "@/config/dashboard.config";
 
 export default async function RoleDashboardPage({ params }: { params: Promise<{ role: string }> }) {
   const { role } = await params;
-  const config = dashboardConfig[role as AppRoleKey];
+  const config = getRoleFromRoute(role);
+
   if (!config) notFound();
+
   const Icon = config.icon;
 
   return (
@@ -19,11 +21,29 @@ export default async function RoleDashboardPage({ params }: { params: Promise<{ 
         <div className="rounded-2xl bg-primary/10 p-4 text-primary"><Icon className="h-8 w-8" /></div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card><CardHeader><CardTitle>Citizen Registration</CardTitle><CardDescription>Draft and submitted citizen registrations.</CardDescription></CardHeader><CardContent className="text-sm text-muted-foreground">Use Citizen Management from the sidebar to create, update, upload documents, and submit registrations.</CardContent></Card>
-        <Card><CardHeader><CardTitle>Administrative Scope</CardTitle><CardDescription>Data access is filtered by assigned level.</CardDescription></CardHeader><CardContent className="text-sm text-muted-foreground">Super Admin sees all; Admin users see only their city/subcity/woreda/zone.</CardContent></Card>
-        <Card><CardHeader><CardTitle>Next Phase</CardTitle><CardDescription>Verification and approval workflow.</CardDescription></CardHeader><CardContent className="text-sm text-muted-foreground">Phase 2 will add review queues, approval, rejection, and escalation.</CardContent></Card>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {config.metrics.map((metric) => (
+          <Card key={metric.label} className="rounded-2xl">
+            <CardHeader className="pb-2">
+              <CardDescription>{metric.label}</CardDescription>
+              <CardTitle className="text-2xl">{metric.value}</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">{metric.description}</CardContent>
+          </Card>
+        ))}
       </div>
+
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>{config.roleName}</CardTitle>
+          <CardDescription>Use the sidebar to manage users, offices, audit records, citizen workflow, reports, and notifications within this role scope.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex min-h-64 items-center justify-center rounded-2xl border border-dashed bg-muted/30 p-10 text-center text-muted-foreground">
+            Dynamic role dashboard area for {config.roleName}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
