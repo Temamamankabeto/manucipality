@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getDashboardForRole } from "@/config/dashboard.config";
+import { getDashboardForUser } from "@/config/dashboard.config";
 import { authService } from "@/services/auth/auth.service";
 
 export default function DashboardIndexPage() {
@@ -10,8 +10,8 @@ export default function DashboardIndexPage() {
 
   useEffect(() => {
     const user = authService.getStoredUser();
-    const role = authService.getStoredRoles()[0] ?? user?.role ?? "Super Admin";
-    router.replace(getDashboardForRole(role, user?.admin_level).route);
+    const roles = authService.getStoredRoles();
+    router.replace(getDashboardForUser(roles, user).route);
   }, [router]);
 
   return null;
