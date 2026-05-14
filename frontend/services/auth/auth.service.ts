@@ -1,5 +1,4 @@
 import api, { clearSession, unwrap } from "@/lib/api";
-import type { CustomerRegisterPayload } from "@/lib/auth/auth.schema";
 
 export type AuthUser = {
   id?: number | string;
@@ -54,10 +53,6 @@ export const authService = {
     return normalizeLoginResponse(unwrap<LoginResponse>(response));
   },
 
-  async registerCustomer(payload: CustomerRegisterPayload) {
-    const response = await api.post("/auth/register", payload);
-    return normalizeLoginResponse(unwrap<LoginResponse>(response));
-  },
 
   async me() {
     const response = await api.get("/auth/me");

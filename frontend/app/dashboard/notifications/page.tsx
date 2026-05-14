@@ -4,7 +4,7 @@ export default function PlaceholderPage() {
   return (
     <Card className="rounded-2xl">
       <CardHeader>
-        <CardTitle className="capitalize">audit logs</CardTitle>
+        <CardTitle className="capitalize">notifications</CardTitle>
         <CardDescription>Municipality module workspace.</CardDescription>
       </CardHeader>
       <CardContent>

@@ -24,7 +24,6 @@ export const userManagementKeys = {
   userDetail: (id: number | string) => [...userManagementKeys.users(), "detail", id] as const,
   rolesLite: () => [...userManagementKeys.users(), "roles-lite"] as const,
   officesLite: (params: Record<string, unknown> = {}) => [...userManagementKeys.users(), "offices-lite", params] as const,
-  waitersLite: (search?: string) => [...userManagementKeys.users(), "waiters-lite", search ?? ""] as const,
   roles: () => [...userManagementKeys.all, "roles"] as const,
   rolesList: (params: RoleListParams = {}) => [...userManagementKeys.roles(), "list", params] as const,
   rolePermissions: (id: number | string) => [...userManagementKeys.roles(), "permissions", id] as const,
@@ -50,9 +49,6 @@ export function useOfficesLiteQuery(params: { type?: string; parent_id?: number 
   return useQuery({ queryKey: userManagementKeys.officesLite(params), queryFn: () => userService.officesLite(params) });
 }
 
-export function useWaitersLiteQuery(search?: string) {
-  return useQuery({ queryKey: userManagementKeys.waitersLite(search), queryFn: () => userService.waitersLite(search) });
-}
 
 export function useCreateUserMutation(onSuccess?: () => void) {
   const queryClient = useQueryClient();

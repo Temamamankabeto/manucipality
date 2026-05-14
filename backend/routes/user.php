@@ -23,7 +23,6 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
 
     Route::get('/users/roles-lite', [UserController::class, 'rolesLite']);
     Route::get('/users/offices-lite', [UserController::class, 'officesLite']);
-    Route::get('/users/waiters-lite', [UserController::class, 'waitersLite']);
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/users/{id}', [UserController::class, 'show']);
     Route::post('/users', [UserController::class, 'store']);

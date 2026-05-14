@@ -64,8 +64,4 @@ class UserPolicy
         return $this->allows($user, 'offices.view', 'users.create', 'users.update', 'users.view', 'users.read');
     }
 
-    public function waitersLite(User $user): bool
-    {
-        return $this->allows($user, 'users.view', 'users.read');
-    }
 }

@@ -4,7 +4,7 @@ import type { ApiEnvelope, PaginatedResponse, PermissionItem, PermissionListPara
 function cleanParams<T extends Record<string, unknown>>(params: T = {} as T) {
   const output: Record<string, unknown> = {};
   Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === "") return;
+    if (value === undefined || value === null || value === "" || value === "all") return;
     output[key] = value;
   });
   return output;
