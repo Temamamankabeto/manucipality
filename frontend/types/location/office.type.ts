@@ -44,6 +44,9 @@ export type OfficeListParams = {
   type?: OfficeType | "all";
   status?: OfficeStatusFilter;
   parent_id?: number | string | null;
+  city_id?: number | string | null;
+  subcity_id?: number | string | null;
+  woreda_id?: number | string | null;
   all?: boolean;
   page?: number;
   per_page?: number;

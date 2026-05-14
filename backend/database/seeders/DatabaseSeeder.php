@@ -12,6 +12,8 @@ class DatabaseSeeder extends Seeder
             AdamaOfficeHierarchySeeder::class,
             RolesPermissionsSeeder::class,
             CitizenPhaseOnePermissionSeeder::class,
+            CitizenPhaseTwoPermissionSeeder::class,
+            CitizenPhaseThreePermissionSeeder::class,
             LocationPermissionSeeder::class,
             MunicipalityUserSeeder::class,
             CitizenPhaseOneUserSeeder::class,

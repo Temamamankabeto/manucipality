@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AdminLevel, CreateUserPayload, UpdateUserPayload } from "@/types/user-management/user.type";
+import type { CreateUserPayload, UpdateUserPayload } from "@/types/user-management/user.type";
 
 const nullableNumber = z.preprocess((value) => {
   if (value === "" || value === undefined || value === null || value === "none") return null;
@@ -9,7 +9,7 @@ const nullableNumber = z.preprocess((value) => {
 
 export const adminLevels = ["city", "subcity", "woreda", "zone"] as const;
 
-const commonUserFields = {
+const baseUserSchema = z.object({
   name: z.string().trim().min(2, "Name is required").max(100),
   email: z.string().trim().email("Valid email is required").max(100),
   phone: z.string().trim().min(6, "Phone is required").max(20),
@@ -20,50 +20,41 @@ const commonUserFields = {
   sub_city_id: nullableNumber,
   woreda_id: nullableNumber,
   zone_id: nullableNumber,
-};
+});
 
-type ScopeValue = {
-  role?: "Super Admin" | "Admin" | string;
-  admin_level?: AdminLevel | null;
-  office_id?: number | null;
-  sub_city_id?: number | null;
-  woreda_id?: number | null;
-  zone_id?: number | null;
-};
-
-function validateAdminScope(value: ScopeValue, ctx: z.RefinementCtx) {
+function validateAdminScope(value: any, ctx: z.RefinementCtx) {
   if (value.role === "Super Admin") return;
 
-  if (value.role === "Admin" && !value.admin_level) {
+  if (!value.admin_level) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["admin_level"], message: "Admin level is required" });
+    return;
   }
 
-  if (value.role === "Admin" && value.admin_level === "city" && !value.office_id) {
+  if (value.admin_level === "city" && !value.office_id) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["office_id"], message: "City is required" });
   }
 
-  if (value.role === "Admin" && value.admin_level === "subcity" && !value.sub_city_id) {
+  if (value.admin_level === "subcity" && !value.sub_city_id) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sub_city_id"], message: "Subcity is required" });
   }
 
-  if (value.role === "Admin" && value.admin_level === "woreda" && !value.woreda_id) {
+  if (value.admin_level === "woreda" && !value.woreda_id) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["woreda_id"], message: "Woreda is required" });
   }
 
-  if (value.role === "Admin" && value.admin_level === "zone" && !value.zone_id) {
+  if (value.admin_level === "zone" && !value.zone_id) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["zone_id"], message: "Zone is required" });
   }
 }
 
-const createShape = z.object({
-  ...commonUserFields,
+const createSchema = baseUserSchema.extend({
   password: z.string().min(8, "Password must be at least 8 characters").max(255),
-});
+}).superRefine(validateAdminScope);
 
-const updateShape = z.object(commonUserFields);
+const updateSchema = baseUserSchema.superRefine(validateAdminScope);
 
-export const createUserSchema = createShape.superRefine((value, ctx) => validateAdminScope(value, ctx)) as unknown as z.ZodType<CreateUserPayload>;
-export const updateUserSchema = updateShape.superRefine((value, ctx) => validateAdminScope(value, ctx)) as unknown as z.ZodType<UpdateUserPayload>;
+export const createUserSchema = createSchema as unknown as z.ZodType<CreateUserPayload>;
+export const updateUserSchema = updateSchema as unknown as z.ZodType<UpdateUserPayload>;
 
 export const resetUserPasswordSchema = z.object({
   new_password: z.string().min(8, "Password must be at least 8 characters").max(255),

@@ -28,7 +28,6 @@ export default function CitizenDetailPage() {
   const [editing, setEditing] = useState(false);
   const updateCitizen = useUpdateCitizenMutation(() => { setEditing(false); citizenQuery.refetch(); });
   const submitCitizen = useSubmitCitizenMutation(() => citizenQuery.refetch());
-
   const citizen = citizenQuery.data;
 
   if (citizenQuery.isLoading) return <div className="flex justify-center py-12 text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading citizen...</div>;
@@ -44,7 +43,6 @@ export default function CitizenDetailPage() {
         </div>
         <div className="flex flex-wrap gap-2"><CitizenStatusBadge status={citizen.status} /><Button variant="outline" onClick={() => setEditing((value) => !value)}>{editing ? "Cancel edit" : "Edit"}</Button>{citizen.status === "draft" && <Button onClick={() => submitCitizen.mutate(citizen.id)} disabled={submitCitizen.isPending}>{submitCitizen.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Submit</Button>}</div>
       </div>
-
       {editing ? <CitizenForm initial={citizen} loading={updateCitizen.isPending} submitLabel="Update citizen" onSubmit={(payload) => updateCitizen.mutate({ id: citizen.id, payload })} /> : <CitizenProfile citizen={citizen} />}
       <CitizenDocuments citizenId={citizen.id} documents={citizen.documents ?? []} missing={citizen.missing_required_documents ?? []} />
     </div>
@@ -70,7 +68,10 @@ function CitizenDocuments({ citizenId, documents, missing }: { citizenId: number
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!file) return;
-    uploadDocument.mutate({ id: citizenId, type, title, file }, { onSuccess: () => { setTitle(""); setFile(null); } });
+    uploadDocument.mutate(
+      { id: citizenId, payload: { type, title: title || undefined, file } },
+      { onSuccess: () => { setTitle(""); setFile(null); } }
+    );
   }
 
   return (
