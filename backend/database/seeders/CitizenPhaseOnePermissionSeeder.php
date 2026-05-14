@@ -4,10 +4,10 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 
-class MunicipalityOfficeSeeder extends Seeder
+class CitizenPhaseOnePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call(AdamaOfficeHierarchySeeder::class);
+        $this->call(LocationPermissionSeeder::class);
     }
 }

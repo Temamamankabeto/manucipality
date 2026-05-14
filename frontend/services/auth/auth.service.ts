@@ -1,6 +1,5 @@
 import api, { clearSession, unwrap } from "@/lib/api";
 import type { CustomerRegisterPayload } from "@/lib/auth/auth.schema";
-import type { AdminLevel, OfficeItem } from "@/types/user-management/user.type";
 
 export type AuthUser = {
   id?: number | string;
@@ -8,19 +7,12 @@ export type AuthUser = {
   email?: string;
   phone?: string;
   address?: string | null;
-  status?: string;
   role?: string;
   roles?: string[];
   permissions?: string[];
-  admin_level?: AdminLevel | null;
-  office_id?: number | null;
-  sub_city_id?: number | null;
-  woreda_id?: number | null;
-  zone_id?: number | null;
-  office?: OfficeItem | null;
-  sub_city?: OfficeItem | null;
-  woreda?: OfficeItem | null;
-  zone?: OfficeItem | null;
+  admin_level?: string | null;
+  office_id?: number | string | null;
+  office?: { id?: number | string; name?: string; code?: string; type?: string; parent_id?: number | string | null } | null;
 };
 
 type LoginResponse = {
@@ -32,8 +24,6 @@ type LoginResponse = {
   permissions?: string[];
   data?: LoginResponse;
 };
-
-type ApiEnvelope<T> = { success: boolean; message?: string; data: T; meta?: unknown };
 
 function normalizeLoginResponse(response: unknown): LoginResponse {
   const value = response as { data?: LoginResponse } | LoginResponse;
@@ -56,7 +46,6 @@ function clearAuthCookies() {
   deleteCookie("roles");
   deleteCookie("permissions");
   deleteCookie("user");
-  deleteCookie("refresh_token");
 }
 
 export const authService = {
@@ -72,7 +61,7 @@ export const authService = {
 
   async me() {
     const response = await api.get("/auth/me");
-    return unwrap<ApiEnvelope<AuthUser>>(response).data;
+    return unwrap<AuthUser>(response);
   },
 
   async logout() {
@@ -96,10 +85,7 @@ export const authService = {
       localStorage.setItem("token", token);
       setCookie("token", token);
     }
-    if (refreshToken) {
-      localStorage.setItem("refresh_token", refreshToken);
-      setCookie("refresh_token", refreshToken, 60 * 60 * 24 * 30);
-    }
+    if (refreshToken) localStorage.setItem("refresh_token", refreshToken);
     if (user) {
       localStorage.setItem("user", JSON.stringify(user));
       setCookie("user", user);

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { authService } from "@/services/auth/auth.service";
-import { filterSidebarByPermissions, getSidebarForRole } from "@/config/sidebar.config";
+import { filterSidebarByPermissions, getSidebarForUser } from "@/config/sidebar.config";
 import { cn } from "@/lib/utils";
 
 type SidebarContentProps = {
@@ -16,10 +16,8 @@ export default function SidebarContent({ collapsed = false }: SidebarContentProp
   const pathname = usePathname();
   const user = authService.getStoredUser();
   const roles = authService.getStoredRoles();
-  const role = roles[0] ?? user?.role ?? "Super Admin";
   const permissions = authService.getStoredPermissions();
-
-  const roleSidebar = useMemo(() => getSidebarForRole(role, user?.admin_level), [role, user?.admin_level]);
+  const roleSidebar = useMemo(() => getSidebarForUser(roles, user), [roles, user]);
   const sections = filterSidebarByPermissions(roleSidebar, permissions);
   const RoleIcon = roleSidebar.icon;
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
@@ -39,6 +37,7 @@ export default function SidebarContent({ collapsed = false }: SidebarContentProp
             <div className="min-w-0">
               <h1 className="truncate text-sm font-bold">Adama Municipality</h1>
               <p className="truncate text-xs text-sidebar-foreground/70">{roleSidebar.title}</p>
+              {user?.office?.name ? <p className="truncate text-[11px] text-sidebar-foreground/50">{user.office.name}</p> : null}
             </div>
           )}
         </div>
@@ -86,7 +85,7 @@ export default function SidebarContent({ collapsed = false }: SidebarContentProp
                                 key={child.href}
                                 href={child.href}
                                 className={cn(
-                                  "flex items-center justify-between rounded-lg px-3 py-2 text-sm transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                                  "flex items-center rounded-lg px-3 py-2 text-sm transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                                   childActive && "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary hover:text-sidebar-primary-foreground",
                                 )}
                               >

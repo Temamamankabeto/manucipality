@@ -40,7 +40,7 @@ class Office extends Model
 
     public function users(): HasMany
     {
-        return $this->hasMany(User::class, 'office_id');
+        return $this->hasMany(User::class);
     }
 
     public function scopeActive($query)

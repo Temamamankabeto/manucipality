@@ -1,0 +1,27 @@
+import { z } from "zod";
+
+export const citizenSchema = z.object({
+  national_id: z.string().min(1, "National ID is required"),
+  first_name: z.string().min(1, "First name is required"),
+  middle_name: z.string().optional(),
+  last_name: z.string().min(1, "Last name is required"),
+  gender: z.enum(["male", "female", "other"]),
+  date_of_birth: z.string().min(1, "Date of birth is required"),
+  place_of_birth: z.string().optional(),
+  nationality: z.string().min(1, "Nationality is required"),
+  marital_status: z.string().optional(),
+  phone: z.string().min(1, "Phone is required"),
+  email: z.string().email("Invalid email").optional().or(z.literal("")),
+  occupation: z.string().optional(),
+  education_level: z.string().optional(),
+  disability_status: z.boolean().optional(),
+  emergency_contact: z.string().optional(),
+  registration_channel: z.enum(["municipal_office", "mobile_registration"]),
+  address: z.string().min(1, "Address is required"),
+  house_number: z.string().optional(),
+  city_id: z.union([z.string().min(1), z.number()]),
+  subcity_id: z.union([z.string().min(1), z.number()]),
+  woreda_id: z.union([z.string().min(1), z.number()]),
+  zone_id: z.union([z.string().min(1), z.number()]),
+  photo: z.any().optional(),
+});
