@@ -1,14 +1,13 @@
-import { Bell, BarChart3, Home, IdCard, LayoutDashboard, MapPinned, ShieldCheck, Users } from "lucide-react";
+import { Bell, BarChart3, Home, IdCard, LayoutDashboard, MapPinned, PlusCircle, ShieldCheck, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getDashboardForRole } from "@/config/dashboard.config";
 
-export type AdminLevelKey = "super" | "city" | "subcity" | "woreda" | "zone";
+type AdminLevel = "city" | "subcity" | "woreda" | "zone";
 
 export type SidebarChildItem = {
   label: string;
   href: string;
   permission?: string;
-  levels?: AdminLevelKey[];
 };
 
 export type SidebarItem = {
@@ -16,7 +15,6 @@ export type SidebarItem = {
   href?: string;
   icon: LucideIcon;
   permission?: string;
-  levels?: AdminLevelKey[];
   children?: SidebarChildItem[];
 };
 
@@ -31,163 +29,62 @@ export type RoleSidebar = {
   sections: SidebarSection[];
 };
 
-function resolveLevel(role?: string | null, adminLevel?: string | null): AdminLevelKey {
-  const roleName = String(role ?? "").toLowerCase();
-
-  if (roleName.includes("super")) {
-    return "super";
-  }
-
-  const level = String(adminLevel ?? "").toLowerCase();
-
-  if (level === "city" || level === "subcity" || level === "woreda" || level === "zone") {
-    return level;
-  }
-
-  return "city";
+function isSuperAdmin(role?: string | null) {
+  return String(role ?? "").toLowerCase().includes("super");
 }
 
-function canSeeLevel(levels: AdminLevelKey[] | undefined, currentLevel: AdminLevelKey) {
-  return !levels?.length || levels.includes(currentLevel);
+function adminLevel(value?: string | null): AdminLevel | null {
+  const level = String(value ?? "").toLowerCase();
+  return level === "city" || level === "subcity" || level === "woreda" || level === "zone" ? level : null;
 }
 
-function filterByLevel(sections: SidebarSection[], currentLevel: AdminLevelKey): SidebarSection[] {
-  return sections
-    .map((section) => ({
-      ...section,
-      items: section.items
-        .map((item) => {
-          if (!canSeeLevel(item.levels, currentLevel)) {
-            return null;
-          }
-
-          if (item.children) {
-            const children = item.children.filter((child) => canSeeLevel(child.levels, currentLevel));
-
-            return children.length ? { ...item, children } : null;
-          }
-
-          return item;
-        })
-        .filter(Boolean) as SidebarItem[],
-    }))
-    .filter((section) => section.items.length > 0);
+function section(title: string, items: Array<SidebarItem | false | null | undefined>): SidebarSection {
+  return { title, items: items.filter(Boolean) as SidebarItem[] };
 }
 
-const allLevels: AdminLevelKey[] = ["super", "city", "subcity", "woreda", "zone"];
+export function getSidebarForRole(role?: string | null, levelValue?: string | null): RoleSidebar {
+  const superAdmin = isSuperAdmin(role);
+  const level = adminLevel(levelValue);
+  const dashboard = getDashboardForRole(role, level);
 
-const baseSections: SidebarSection[] = [
-  {
-    title: "Main",
-    items: [
-      {
-        label: "Dashboard",
-        href: "/dashboard",
-        icon: LayoutDashboard,
-        levels: allLevels,
-      },
-    ],
-  },
-  {
-    title: "Citizen Management",
-    items: [
-      {
-        label: "Citizen Dashboard",
-        href: "/dashboard/citizen-dashboard",
-        icon: LayoutDashboard,
-        permission: "dashboard.citizens.view",
-        levels: allLevels,
-      },
-      {
-        label: "Citizens",
-        href: "/dashboard/citizens",
-        icon: IdCard,
-        permission: "citizens.view",
-        levels: allLevels,
-      },
-      {
-        label: "Verification Workflow",
-        icon: ShieldCheck,
-        levels: ["super", "city", "subcity", "woreda"],
-        children: [
-          {
-            label: "Pending Review",
-            href: "/dashboard/citizens/pending",
-            permission: "citizens.workflow.review",
-            levels: ["super", "woreda"],
-          },
-          {
-            label: "Document Verification",
-            href: "/dashboard/citizens/verification",
-            permission: "citizens.workflow.woreda-verify",
-            levels: ["super", "woreda"],
-          },
-          {
-            label: "Approval / ID / Activation",
-            href: "/dashboard/citizens/approval",
-            permission: "citizens.workflow.subcity-approve",
-            levels: ["super", "city", "subcity"],
-          },
-          {
-            label: "Duplicate Investigation",
-            href: "/dashboard/citizens/duplicates",
-            permission: "citizens.workflow.flag",
-            levels: ["super", "woreda"],
-          },
-        ],
-      },
-      {
-        label: "Households",
-        href: "/dashboard/households",
-        icon: Home,
-        permission: "households.read",
-        levels: allLevels,
-      },
-    ],
-  },
-  {
-    title: "Administration",
-    items: [
-      {
-        label: "Users",
-        href: "/dashboard/users",
-        icon: Users,
-        permission: "users.read",
-        levels: ["super", "city", "subcity", "woreda"],
-      },
-      {
-        label: "Locations",
-        href: "/dashboard/locations",
-        icon: MapPinned,
-        permission: "offices.read",
-        levels: ["super", "city", "subcity", "woreda", "zone"],
-      },
-      {
-        label: "Notifications",
-        href: "/dashboard/notifications",
-        icon: Bell,
-        permission: "notifications.read",
-        levels: allLevels,
-      },
-      {
-        label: "Citizen Reports",
-        href: "/dashboard/reports/citizens",
-        icon: BarChart3,
-        permission: "reports.citizens.view",
-        levels: ["super", "city", "subcity", "woreda"],
-      },
-    ],
-  },
-];
+  const canRegister = superAdmin || level === "zone";
+  const canReview = superAdmin || level === "woreda";
+  const canApprove = superAdmin || level === "subcity" || level === "city";
+  const canGenerateId = superAdmin || level === "city";
+  const canManageSystem = superAdmin || level === "city" || level === "subcity" || level === "woreda";
 
-export function getSidebarForRole(role?: string | null, adminLevel?: string | null): RoleSidebar {
-  const level = resolveLevel(role, adminLevel);
-  const dashboard = getDashboardForRole(role, adminLevel);
+  const workflowChildren: SidebarChildItem[] = [
+    ...(canReview ? [
+      { label: "Pending Review", href: "/dashboard/citizens/pending", permission: "citizens.workflow.review" },
+      { label: "Document Verification", href: "/dashboard/citizens/verification", permission: "citizens.workflow.woreda-verify" },
+      { label: "Duplicate Alerts", href: "/dashboard/citizens/duplicates", permission: "citizens.workflow.flag" },
+    ] : []),
+    ...(canApprove ? [
+      { label: "Approval / ID", href: "/dashboard/citizens/approval", permission: level === "city" || superAdmin ? "citizens.workflow.generate-id" : "citizens.workflow.subcity-approve" },
+    ] : []),
+  ];
 
   return {
     title: dashboard.roleName,
     icon: dashboard.icon,
-    sections: filterByLevel(baseSections, level),
+    sections: [
+      section("Main", [
+        { label: "Dashboard", href: dashboard.route, icon: LayoutDashboard },
+      ]),
+      section("Citizen Management", [
+        { label: "Citizen Dashboard", href: "/dashboard/citizen-dashboard", icon: LayoutDashboard, permission: "dashboard.citizens.view" },
+        { label: "Citizens", href: "/dashboard/citizens", icon: IdCard, permission: "citizens.read" },
+        canRegister && { label: "Register Citizen", href: "/dashboard/citizens/create", icon: PlusCircle, permission: "citizens.create" },
+        workflowChildren.length > 0 && { label: "Verification Workflow", icon: ShieldCheck, children: workflowChildren },
+        { label: "Households", href: "/dashboard/households", icon: Home, permission: "households.read" },
+      ]),
+      section("Administration", [
+        canManageSystem && { label: "Users", href: "/dashboard/users", icon: Users, permission: "users.read" },
+        { label: "Locations", href: "/dashboard/locations", icon: MapPinned, permission: "offices.read" },
+        { label: "Notifications", href: "/dashboard/notifications", icon: Bell, permission: "notifications.read" },
+        (superAdmin || level === "city" || level === "subcity" || level === "woreda") && { label: "Citizen Reports", href: "/dashboard/reports/citizens", icon: BarChart3, permission: "reports.citizens.view" },
+      ]),
+    ].filter((s) => s.items.length > 0),
   };
 }
 
