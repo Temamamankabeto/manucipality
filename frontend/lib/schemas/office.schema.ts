@@ -21,4 +21,6 @@ export const officeSchema = officeShape.superRefine((value, ctx) => {
   }
 }) as unknown as z.ZodType<OfficePayload>;
 
-export const parseOfficePayload = (value: unknown): OfficePayload => officeSchema.parse(value);
+export function parseOfficePayload(value: unknown): OfficePayload {
+  return officeSchema.parse(value);
+}

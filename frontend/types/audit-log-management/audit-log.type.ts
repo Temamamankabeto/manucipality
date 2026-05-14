@@ -22,16 +22,14 @@ export type AuditLogFilters = {
 
 export type AuditLogItem = {
   id: number;
-  actor_id?: number | null;
-  user_id?: number | null;
-  action: string;
+  actor_id?: number | string | null;
   module?: string | null;
   entity_type?: string | null;
   entity_id?: number | string | null;
+  action?: string;
+  description?: string;
   ip_address?: string | null;
-  user_agent?: string | null;
   before?: unknown;
   after?: unknown;
   created_at?: string;
-  updated_at?: string;
 };

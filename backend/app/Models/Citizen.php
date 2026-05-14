@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -109,6 +110,33 @@ class Citizen extends Model
     public function zone(): BelongsTo
     {
         return $this->belongsTo(Office::class, 'zone_id');
+    }
+
+    public function householdMembers(): HasMany
+    {
+        return $this->hasMany(HouseholdMember::class);
+    }
+
+    public function activeHouseholdMember(): HasOne
+    {
+        return $this->hasOne(HouseholdMember::class)->where('status', HouseholdMember::STATUS_ACTIVE)->latestOfMany();
+    }
+
+    public function households(): BelongsToMany
+    {
+        return $this->belongsToMany(Household::class, 'household_members')
+            ->withPivot(['relationship', 'is_head', 'is_dependent', 'joined_at', 'left_at', 'status', 'notes'])
+            ->withTimestamps();
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(CitizenNotification::class);
+    }
+
+    public function serviceHistories(): HasMany
+    {
+        return $this->hasMany(CitizenServiceHistory::class)->latest('occurred_at');
     }
 
     public function getFullNameAttribute(): string

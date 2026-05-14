@@ -10,7 +10,7 @@ export default function DashboardIndexPage() {
 
   useEffect(() => {
     const user = authService.getStoredUser();
-    const role = authService.getStoredRoles()[0] ?? user?.role ?? "Super Admin";
+    const role = authService.getStoredRoles()[0] ?? user?.role ?? "Admin";
     router.replace(getDashboardForRole(role, user?.admin_level).route);
   }, [router]);
 

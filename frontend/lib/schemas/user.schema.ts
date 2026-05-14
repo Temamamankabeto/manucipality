@@ -22,14 +22,16 @@ const commonUserFields = {
   zone_id: nullableNumber,
 };
 
-function validateAdminScope(value: {
+type ScopeValue = {
   role?: "Super Admin" | "Admin" | string;
   admin_level?: AdminLevel | null;
   office_id?: number | null;
   sub_city_id?: number | null;
   woreda_id?: number | null;
   zone_id?: number | null;
-}, ctx: z.RefinementCtx) {
+};
+
+function validateAdminScope(value: ScopeValue, ctx: z.RefinementCtx) {
   if (value.role === "Super Admin") return;
 
   if (value.role === "Admin" && !value.admin_level) {
@@ -60,8 +62,8 @@ const createShape = z.object({
 
 const updateShape = z.object(commonUserFields);
 
-export const createUserSchema = createShape.superRefine(validateAdminScope) as unknown as z.ZodType<CreateUserPayload>;
-export const updateUserSchema = updateShape.superRefine(validateAdminScope) as unknown as z.ZodType<UpdateUserPayload>;
+export const createUserSchema = createShape.superRefine((value, ctx) => validateAdminScope(value, ctx)) as unknown as z.ZodType<CreateUserPayload>;
+export const updateUserSchema = updateShape.superRefine((value, ctx) => validateAdminScope(value, ctx)) as unknown as z.ZodType<UpdateUserPayload>;
 
 export const resetUserPasswordSchema = z.object({
   new_password: z.string().min(8, "Password must be at least 8 characters").max(255),

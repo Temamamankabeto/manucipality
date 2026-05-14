@@ -41,6 +41,13 @@ export type {
 } from "@/types/location/office.type";
 
 export type {
-  AuditLogFilters,
-  AuditLogItem,
-} from "@/types/audit-log-management/audit-log.type";
+  HouseholdItem,
+  HouseholdMemberItem,
+  HouseholdPayload,
+  HouseholdMemberPayload,
+  CitizenProfile,
+  NotificationItem,
+  CitizenDashboardMetrics,
+} from "@/types/citizen/phase-three.type";
+
+export type { AuditLogFilters, AuditLogItem } from "@/types/audit-log-management/audit-log.type";

@@ -2,7 +2,6 @@ export {
   useUsersQuery,
   useUserQuery,
   useRolesLiteQuery,
-  useRolesLiteQuery as useUserRolesLiteQuery,
   useOfficesLiteQuery,
   useCreateUserMutation,
   useUpdateUserMutation,
