@@ -27,9 +27,14 @@ export type {
   CitizenListParams,
   CitizenPayload,
   CitizenStatus,
+  CitizenWorkflowStage,
+  CitizenWorkflowListParams,
+  CitizenDuplicateFlag,
   DuplicateCheckPayload,
   DuplicateCheckResult,
   RegistrationChannel,
+  WorkflowActionPayload,
+  DocumentVerificationPayload,
 } from "@/types/citizen/citizen.type";
 
 export type {

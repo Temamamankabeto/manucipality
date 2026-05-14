@@ -3,7 +3,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { citizenService } from "@/services/citizen/citizen.service";
-import type { CitizenListParams, CitizenPayload, CitizenWorkflowListParams, DocumentVerificationPayload, DuplicateCheckPayload, WorkflowActionPayload } from "@/types/citizen/citizen.type";
+import type {
+  CitizenItem,
+  CitizenListParams,
+  CitizenPayload,
+  CitizenWorkflowListParams,
+  DocumentVerificationPayload,
+  DuplicateCheckPayload,
+  WorkflowActionPayload,
+} from "@/types/citizen/citizen.type";
 
 export const citizenKeys = {
   all: ["citizens"] as const,
@@ -30,9 +38,9 @@ export function useCitizenQuery(id?: number | string) {
   return useQuery({ queryKey: citizenKeys.detail(id ?? ""), queryFn: () => citizenService.show(id as number | string), enabled: Boolean(id) });
 }
 
-export function useCreateCitizenMutation(onSuccess?: () => void) {
+export function useCreateCitizenMutation(onSuccess?: (citizen: CitizenItem) => void) {
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: (payload: CitizenPayload) => citizenService.create(payload), onSuccess: () => { invalidateCitizen(queryClient); toast.success("Citizen created"); onSuccess?.(); } });
+  return useMutation({ mutationFn: (payload: CitizenPayload) => citizenService.create(payload), onSuccess: (citizen) => { invalidateCitizen(queryClient, citizen.id); toast.success("Citizen created"); onSuccess?.(citizen); } });
 }
 
 export function useUpdateCitizenMutation(onSuccess?: () => void) {

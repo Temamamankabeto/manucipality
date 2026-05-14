@@ -10,8 +10,15 @@ function cleanParams<T extends Record<string, unknown>>(params: T = {} as T) {
   return output;
 }
 
+function rows<T>(body: any): T[] {
+  if (Array.isArray(body)) return body;
+  if (Array.isArray(body?.data)) return body.data;
+  if (Array.isArray(body?.data?.data)) return body.data.data;
+  return [];
+}
+
 function paginated<T>(body: any): PaginatedResponse<T> {
-  const data = Array.isArray(body?.data) ? body.data : Array.isArray(body?.data?.data) ? body.data.data : [];
+  const data = rows<T>(body);
   const meta = body?.meta ?? body?.data ?? {};
   return {
     success: body?.success,
