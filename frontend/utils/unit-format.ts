@@ -1,4 +1,4 @@
-import type { BaseUnit } from "@/types/inventory-management";
+export type BaseUnit = "g" | "ml" | "pc";
 
 export function normalizeBaseUnit(unit?: string | null): BaseUnit {
   if (unit === "ml" || unit === "pc" || unit === "g") return unit;
@@ -27,8 +27,6 @@ export function formatNumber(value?: number | string | null) {
 }
 
 export function toBaseQuantity(value: number | string, baseUnit: BaseUnit) {
-  // The UI accepts already-base quantities only: g, ml, pc.
-  // This helper exists for consistency and intentionally does no runtime unit conversion.
   const n = Number(value ?? 0);
   return baseUnit === "pc" ? Math.round(n) : n;
 }

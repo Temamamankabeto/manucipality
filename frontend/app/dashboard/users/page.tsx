@@ -18,14 +18,30 @@ import { useCreateUserMutation, useDeleteUserMutation, useOfficesLiteQuery, useR
 import { createUserSchema, updateUserSchema } from "@/lib/schemas/user.schema";
 import type { AdminLevel, CreateUserPayload, OfficeItem, UpdateUserPayload, UserItem, UserStatus } from "@/types/user-management/user.type";
 
-const emptyCreate: CreateUserPayload = { name: "", email: "", phone: "", password: "", role: "Admin", admin_level: "zone", office_id: null, sub_city_id: null, woreda_id: null, zone_id: null };
-const emptyEdit: UpdateUserPayload = { name: "", email: "", phone: "", role: "Admin", admin_level: "zone", office_id: null, sub_city_id: null, woreda_id: null, zone_id: null };
+const emptyCreate: CreateUserPayload & { city_id?: number | null } = { name: "", email: "", phone: "", password: "", role: "Admin", admin_level: "zone", office_id: null, sub_city_id: null, woreda_id: null, zone_id: null, city_id: null };
+const emptyEdit: UpdateUserPayload & { city_id?: number | null } = { name: "", email: "", phone: "", role: "Admin", admin_level: "zone", office_id: null, sub_city_id: null, woreda_id: null, zone_id: null, city_id: null };
 
 const levelLabels: Record<AdminLevel, string> = { city: "City level", subcity: "Subcity level", woreda: "Woreda level", zone: "Zone level" };
-function numberOrNull(value?: string | null) { if (!value || value === "none") return null; const parsed = Number(value); return Number.isNaN(parsed) ? null : parsed; }
-function roleOf(user: UserItem) { if (user.role) return user.role; const first = user.roles?.[0]; return !first ? "—" : typeof first === "string" ? first : first.name; }
-function levelOf(user: UserItem) { return user.role === "Super Admin" ? "System" : user.admin_level ? levelLabels[user.admin_level] : "—"; }
-function officeLabel(user: UserItem) { return user.zone?.name ?? user.woreda?.name ?? user.sub_city?.name ?? user.office?.name ?? "—"; }
+
+function numberOrNull(value?: string | null) {
+  if (!value || value === "none") return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function roleOf(user: UserItem) {
+  if (user.role) return user.role;
+  const first = user.roles?.[0];
+  return !first ? "—" : typeof first === "string" ? first : first.name;
+}
+
+function levelOf(user: UserItem) {
+  return user.role === "Super Admin" ? "System" : user.admin_level ? levelLabels[user.admin_level] : "—";
+}
+
+function officeLabel(user: UserItem) {
+  return user.zone?.name ?? user.woreda?.name ?? user.sub_city?.name ?? user.office?.name ?? "—";
+}
 
 export default function UsersPage() {
   const [search, setSearch] = useState("");
@@ -37,8 +53,8 @@ export default function UsersPage() {
   const [resetOpen, setResetOpen] = useState(false);
   const [deleteUser, setDeleteUser] = useState<UserItem | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
-  const [createForm, setCreateForm] = useState<CreateUserPayload>(emptyCreate);
-  const [editForm, setEditForm] = useState<UpdateUserPayload>(emptyEdit);
+  const [createForm, setCreateForm] = useState<CreateUserPayload & { city_id?: number | null }>(emptyCreate);
+  const [editForm, setEditForm] = useState<UpdateUserPayload & { city_id?: number | null }>(emptyEdit);
   const [newPassword, setNewPassword] = useState("");
 
   const params = useMemo(() => ({ search, status, admin_level: adminLevel, page, per_page: 10 }), [search, status, adminLevel, page]);
@@ -55,9 +71,13 @@ export default function UsersPage() {
   const meta = usersQuery.data?.meta;
   const busy = createUser.isPending || updateUser.isPending || resetPassword.isPending;
 
+  function deriveCityId(user: UserItem) {
+    return user.office?.type === "city" ? user.office.id : null;
+  }
+
   function openEdit(user: UserItem) {
     setSelectedUser(user);
-    setEditForm({ name: user.name ?? "", email: user.email ?? "", phone: user.phone ?? "", address: user.address ?? "", role: roleOf(user) || "Admin", admin_level: user.admin_level ?? "zone", office_id: user.office_id ?? null, sub_city_id: user.sub_city_id ?? null, woreda_id: user.woreda_id ?? null, zone_id: user.zone_id ?? null });
+    setEditForm({ name: user.name ?? "", email: user.email ?? "", phone: user.phone ?? "", address: user.address ?? "", role: roleOf(user) || "Admin", admin_level: user.admin_level ?? "zone", office_id: user.office_id ?? null, sub_city_id: user.sub_city_id ?? null, woreda_id: user.woreda_id ?? null, zone_id: user.zone_id ?? null, city_id: deriveCityId(user) });
     setEditOpen(true);
   }
 
@@ -129,22 +149,59 @@ export default function UsersPage() {
   );
 }
 
-function UserFields({ form, roles, offices, onChange, includePassword = false }: { form: CreateUserPayload | UpdateUserPayload; roles: string[]; offices: OfficeItem[]; onChange: (form: any) => void; includePassword?: boolean }) {
+function findParent(offices: OfficeItem[], id?: number | null) {
+  return offices.find((office) => office.id === id)?.parent_id ?? null;
+}
+
+function getCityId(form: any, offices: OfficeItem[]) {
+  if (form.city_id) return Number(form.city_id);
+  if (form.admin_level === "city" && form.office_id) return Number(form.office_id);
+  if (form.sub_city_id) return findParent(offices, Number(form.sub_city_id));
+  if (form.woreda_id) {
+    const subcityId = findParent(offices, Number(form.woreda_id));
+    return findParent(offices, subcityId);
+  }
+  if (form.zone_id) {
+    const woredaId = findParent(offices, Number(form.zone_id));
+    const subcityId = findParent(offices, woredaId);
+    return findParent(offices, subcityId);
+  }
+  return null;
+}
+
+function UserFields({ form, roles, offices, onChange, includePassword = false }: { form: (CreateUserPayload | UpdateUserPayload) & { city_id?: number | null }; roles: string[]; offices: OfficeItem[]; onChange: (form: any) => void; includePassword?: boolean }) {
+  const isSuperAdmin = form.role === "Super Admin";
+  const selectedCityId = getCityId(form, offices);
   const cities = offices.filter((office) => office.type === "city");
-  const subCities = offices.filter((office) => office.type === "subcity");
+  const subCities = offices.filter((office) => office.type === "subcity" && (!selectedCityId || office.parent_id === selectedCityId));
   const woredas = offices.filter((office) => office.type === "woreda" && (!form.sub_city_id || office.parent_id === form.sub_city_id));
   const zones = offices.filter((office) => office.type === "zone" && (!form.woreda_id || office.parent_id === form.woreda_id));
-  const isSuperAdmin = form.role === "Super Admin";
 
   function setRole(role: string) {
-    onChange({ ...form, role, admin_level: role === "Super Admin" ? null : (form.admin_level ?? "zone"), office_id: role === "Super Admin" ? null : form.office_id, sub_city_id: role === "Super Admin" ? null : form.sub_city_id, woreda_id: role === "Super Admin" ? null : form.woreda_id, zone_id: role === "Super Admin" ? null : form.zone_id });
+    onChange({ ...form, role, admin_level: role === "Super Admin" ? null : (form.admin_level ?? "zone"), city_id: null, office_id: null, sub_city_id: null, woreda_id: null, zone_id: null });
   }
 
   function setLevel(level: AdminLevel) {
-    onChange({ ...form, admin_level: level, office_id: null, sub_city_id: null, woreda_id: null, zone_id: null });
+    onChange({ ...form, admin_level: level, city_id: null, office_id: null, sub_city_id: null, woreda_id: null, zone_id: null });
   }
 
-  return <><div className="grid gap-4 md:grid-cols-2"><div className="grid gap-2"><Label>Name</Label><Input value={form.name} onChange={(e) => onChange({ ...form, name: e.target.value })} required /></div><div className="grid gap-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => onChange({ ...form, email: e.target.value })} required /></div><div className="grid gap-2"><Label>Phone</Label><Input value={form.phone} onChange={(e) => onChange({ ...form, phone: e.target.value })} required /></div><div className="grid gap-2"><Label>Role</Label><Select value={form.role || "Admin"} onValueChange={setRole}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{roles.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}</SelectContent></Select></div></div><div className="grid gap-2"><Label>Address</Label><Input value={form.address ?? ""} onChange={(e) => onChange({ ...form, address: e.target.value })} /></div>{!isSuperAdmin && <><div className="grid gap-2"><Label>Admin Level</Label><Select value={form.admin_level ?? "zone"} onValueChange={(value) => setLevel(value as AdminLevel)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(levelLabels).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-4 md:grid-cols-4"><OfficeSelect label="City" value={form.admin_level === "city" ? form.office_id : null} offices={cities} disabled={form.admin_level !== "city"} onValueChange={(id) => onChange({ ...form, office_id: id })} /><OfficeSelect label="Subcity" value={form.sub_city_id} offices={subCities} disabled={!form.admin_level || !["subcity", "woreda", "zone"].includes(form.admin_level)} onValueChange={(id) => onChange({ ...form, sub_city_id: id, woreda_id: null, zone_id: null, office_id: form.admin_level === "subcity" ? id : null })} /><OfficeSelect label="Woreda" value={form.woreda_id} offices={woredas} disabled={!form.admin_level || !["woreda", "zone"].includes(form.admin_level)} onValueChange={(id) => onChange({ ...form, woreda_id: id, zone_id: null, office_id: form.admin_level === "woreda" ? id : null })} /><OfficeSelect label="Zone" value={form.zone_id} offices={zones} disabled={form.admin_level !== "zone"} onValueChange={(id) => onChange({ ...form, zone_id: id, office_id: id })} /></div></>}{includePassword && "password" in form && <div className="grid gap-2"><Label>Password</Label><Input type="password" value={form.password} onChange={(e) => onChange({ ...form, password: e.target.value })} required minLength={8} /></div>}</>;
+  function setCity(id: number | null) {
+    onChange({ ...form, city_id: id, office_id: form.admin_level === "city" ? id : null, sub_city_id: null, woreda_id: null, zone_id: null });
+  }
+
+  function setSubcity(id: number | null) {
+    onChange({ ...form, sub_city_id: id, office_id: form.admin_level === "subcity" ? id : null, woreda_id: null, zone_id: null });
+  }
+
+  function setWoreda(id: number | null) {
+    onChange({ ...form, woreda_id: id, office_id: form.admin_level === "woreda" ? id : null, zone_id: null });
+  }
+
+  function setZone(id: number | null) {
+    onChange({ ...form, zone_id: id, office_id: form.admin_level === "zone" ? id : null });
+  }
+
+  return <><div className="grid gap-4 md:grid-cols-2"><div className="grid gap-2"><Label>Name</Label><Input value={form.name} onChange={(e) => onChange({ ...form, name: e.target.value })} required /></div><div className="grid gap-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => onChange({ ...form, email: e.target.value })} required /></div><div className="grid gap-2"><Label>Phone</Label><Input value={form.phone} onChange={(e) => onChange({ ...form, phone: e.target.value })} required /></div><div className="grid gap-2"><Label>Role</Label><Select value={form.role || "Admin"} onValueChange={setRole}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{roles.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}</SelectContent></Select></div></div><div className="grid gap-2"><Label>Address</Label><Input value={form.address ?? ""} onChange={(e) => onChange({ ...form, address: e.target.value })} /></div>{!isSuperAdmin && <><div className="grid gap-2"><Label>Admin Level</Label><Select value={form.admin_level ?? "zone"} onValueChange={(value) => setLevel(value as AdminLevel)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(levelLabels).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-4 md:grid-cols-4"><OfficeSelect label="City" value={selectedCityId} offices={cities} disabled={false} onValueChange={setCity} /><OfficeSelect label="Subcity" value={form.sub_city_id} offices={subCities} disabled={!selectedCityId || !["subcity", "woreda", "zone"].includes(form.admin_level ?? "")} onValueChange={setSubcity} /><OfficeSelect label="Woreda" value={form.woreda_id} offices={woredas} disabled={!form.sub_city_id || !["woreda", "zone"].includes(form.admin_level ?? "")} onValueChange={setWoreda} /><OfficeSelect label="Zone" value={form.zone_id} offices={zones} disabled={!form.woreda_id || form.admin_level !== "zone"} onValueChange={setZone} /></div></>}{includePassword && "password" in form && <div className="grid gap-2"><Label>Password</Label><Input type="password" value={form.password} onChange={(e) => onChange({ ...form, password: e.target.value })} required minLength={8} /></div>}</>;
 }
 
 function OfficeSelect({ label, value, offices, disabled, onValueChange }: { label: string; value?: number | null; offices: OfficeItem[]; disabled?: boolean; onValueChange: (value: number | null) => void }) {

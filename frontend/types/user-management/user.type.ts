@@ -1,3 +1,7 @@
+import type { OfficeItem } from "@/types/location/office.type";
+
+export type { OfficeItem } from "@/types/location/office.type";
+
 export type ApiEnvelope<T> = {
   success: boolean;
   message?: string;
@@ -37,14 +41,6 @@ export type PermissionItem = {
   guard_name?: string;
   created_at?: string;
   updated_at?: string;
-};
-
-export type OfficeItem = {
-  id: number;
-  name: string;
-  code?: string | null;
-  type: "city" | "subcity" | "woreda" | "zone" | string;
-  parent_id?: number | null;
 };
 
 export type UserItem = {
@@ -108,4 +104,8 @@ export type AssignRolePermissionsPayload = { permissions: string[] };
 export type PermissionListParams = { search?: string; all?: boolean; page?: number; per_page?: number };
 export type PermissionPayload = { name: string };
 
-export type RolePermissionResult = { role_id: number | string; assigned_count: number; permissions: string[] };
+export type RolePermissionResult = {
+  role_id: number | string;
+  assigned_count: number;
+  permissions: string[];
+};

@@ -12,8 +12,8 @@ Route::get('/ping', function () {
 
 require __DIR__ . '/auth.php';
 require __DIR__ . '/user.php';
+require __DIR__ . '/location.php';
 require __DIR__ . '/asset.php';
 require __DIR__ . '/citizen.php';
 require __DIR__ . '/property.php';
 require __DIR__ . '/procurement.php';
-

@@ -1,9 +1,9 @@
 import api, { unwrap } from "@/lib/api";
+import type { OfficeItem } from "@/types/location/office.type";
 import type {
   ApiEnvelope,
   AssignUserRolePayload,
   CreateUserPayload,
-  OfficeItem,
   PaginatedResponse,
   PermissionItem,
   PermissionListParams,
@@ -93,7 +93,6 @@ export const userService = {
     return Array.isArray(body?.data) ? (body.data as OfficeItem[]) : [];
   },
 
-
   async roles(params: RoleListParams = {}) {
     const response = await api.get("/admin/roles", { params: cleanParams(params) });
     return paginated<RoleItem>(response.data);
@@ -102,7 +101,6 @@ export const userService = {
   async permissions(params: PermissionListParams = { all: true }) {
     const response = await api.get("/admin/permissions", { params: cleanParams(params) });
     const body = response.data;
-    if (params.all && Array.isArray(body?.data)) return body.data as PermissionItem[];
     return Array.isArray(body?.data) ? (body.data as PermissionItem[]) : [];
   },
 };
