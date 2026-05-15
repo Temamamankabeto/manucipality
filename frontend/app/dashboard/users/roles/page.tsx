@@ -84,13 +84,28 @@ export default function RolesPage() {
     setPermissionsOpen(true);
   }
 
-  function submitRole(event: FormEvent) {
-    event.preventDefault();
-    const parsed = roleSchema.parse({ name: roleName });
-    const payload: RolePayload = { name: parsed.name };
-    if (selectedRole) updateRole.mutate({ id: selectedRole.id, payload });
-    else createRole.mutate(payload);
+ function submitRole(event: FormEvent) {
+  event.preventDefault();
+
+  const result = roleSchema.safeParse({
+    name: roleName?.trim(),
+  });
+
+  if (!result.success) {
+    console.log("Zod validation error:", result.error.format());
+    return;
   }
+
+  const payload: RolePayload = {
+    name: result.data.name,
+  };
+
+  if (selectedRole) {
+    updateRole.mutate({ id: selectedRole.id, payload });
+  } else {
+    createRole.mutate(payload);
+  }
+}
 
   function togglePermission(permission: string) {
     setSelectedPermissions((current) => current.includes(permission) ? current.filter((item) => item !== permission) : [...current, permission]);
