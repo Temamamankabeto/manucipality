@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\Api\CitizenController;
 use App\Http\Controllers\Api\CitizenDocumentController;
+use App\Http\Controllers\Api\CitizenDuplicateController;
 use App\Http\Controllers\Api\CitizenNotificationController;
 use App\Http\Controllers\Api\CitizenProfileController;
 use App\Http\Controllers\Api\CitizenReportController;
+use App\Http\Controllers\Api\CitizenStatusController;
 use App\Http\Controllers\Api\CitizenWorkflowController;
 use App\Http\Controllers\Api\HouseholdController;
 use App\Http\Controllers\Api\HouseholdMemberController;
@@ -54,6 +56,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('citizens')->group(function () {
         Route::get('/workflow/pending', [CitizenWorkflowController::class, 'pending']);
         Route::get('/duplicates', [CitizenWorkflowController::class, 'duplicates']);
+        Route::patch('/duplicates/{flag}/resolve', [CitizenDuplicateController::class, 'resolve']);
+        Route::patch('/duplicates/{flag}/dismiss', [CitizenDuplicateController::class, 'dismiss']);
+
         Route::get('/search/filter', [CitizenController::class, 'index']);
         Route::post('/validate-duplicate', [CitizenController::class, 'validateDuplicate']);
         Route::get('/check-national-id/{nationalId}', [CitizenController::class, 'checkNationalId']);
@@ -77,6 +82,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/{citizen}/reject', [CitizenWorkflowController::class, 'reject']);
         Route::patch('/{citizen}/flag', [CitizenWorkflowController::class, 'flag']);
         Route::patch('/{citizen}/suspend', [CitizenWorkflowController::class, 'suspend']);
+        Route::patch('/{citizen}/deactivate', [CitizenStatusController::class, 'deactivate']);
+        Route::patch('/{citizen}/reactivate', [CitizenStatusController::class, 'reactivate']);
+        Route::post('/{citizen}/merge-duplicate', [CitizenDuplicateController::class, 'merge']);
 
         Route::post('/{citizen}/photo', [CitizenController::class, 'uploadPhoto']);
         Route::delete('/{citizen}/photo', [CitizenController::class, 'removePhoto']);

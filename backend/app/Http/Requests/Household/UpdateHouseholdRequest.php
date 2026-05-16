@@ -16,10 +16,10 @@ class UpdateHouseholdRequest extends FormRequest
     {
         return [
             'head_citizen_id' => ['required', 'integer', 'exists:citizens,id'],
-            'city_id' => ['required', 'integer', 'exists:offices,id'],
-            'subcity_id' => ['required', 'integer', 'exists:offices,id'],
-            'woreda_id' => ['required', 'integer', 'exists:offices,id'],
-            'zone_id' => ['required', 'integer', 'exists:offices,id'],
+            'city_id' => ['nullable', 'integer', 'exists:offices,id'],
+            'subcity_id' => ['nullable', 'integer', 'exists:offices,id'],
+            'woreda_id' => ['nullable', 'integer', 'exists:offices,id'],
+            'zone_id' => ['nullable', 'integer', 'exists:offices,id'],
             'house_number' => ['nullable', 'string', 'max:80'],
             'address' => ['nullable', 'string', 'max:1000'],
             'status' => ['required', Rule::in(['active', 'inactive', 'suspended'])],

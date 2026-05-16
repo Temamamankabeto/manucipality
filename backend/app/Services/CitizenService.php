@@ -29,7 +29,14 @@ class CitizenService
         $search = trim((string) ($filters['search'] ?? ''));
 
         $query = Citizen::query()
-            ->with(['city:id,name,type,parent_id', 'subcity:id,name,type,parent_id', 'woreda:id,name,type,parent_id', 'zone:id,name,type,parent_id', 'address', 'documents'])
+            ->with([
+                'city:id,name,type,parent_id',
+                'subcity:id,name,type,parent_id',
+                'woreda:id,name,type,parent_id',
+                'zone:id,name,type,parent_id',
+                'address',
+                'documents',
+            ])
             ->latest();
 
         $this->applyOfficeScope($query, $actor);
@@ -37,6 +44,7 @@ class CitizenService
         if ($search !== '') {
             $query->where(function (Builder $q) use ($search) {
                 $q->where('registration_number', 'like', "%{$search}%")
+                    ->orWhere('citizen_uid', 'like', "%{$search}%")
                     ->orWhere('national_id', 'like', "%{$search}%")
                     ->orWhere('first_name', 'like', "%{$search}%")
                     ->orWhere('middle_name', 'like', "%{$search}%")
@@ -52,11 +60,11 @@ class CitizenService
             }
         }
 
-        if (! empty($filters['from_date'])) {
+        if (!empty($filters['from_date'])) {
             $query->whereDate('created_at', '>=', $filters['from_date']);
         }
 
-        if (! empty($filters['to_date'])) {
+        if (!empty($filters['to_date'])) {
             $query->whereDate('created_at', '<=', $filters['to_date']);
         }
 
@@ -65,7 +73,7 @@ class CitizenService
 
     public function createCitizen(array $data, User $actor, ?UploadedFile $photo = null): Citizen
     {
-        $data = $this->applyAuthenticatedLocationScope($data, $actor);
+        $data = $this->resolveCitizenScope($data, $actor, true);
         $this->assertOfficePayloadAllowed($data, $actor);
 
         return DB::transaction(function () use ($data, $actor, $photo) {
@@ -74,14 +82,19 @@ class CitizenService
             $payload['status'] = Citizen::STATUS_DRAFT;
             $payload['registered_by'] = $actor->id;
             $payload['last_status_changed_by'] = $actor->id;
+            $payload['registration_channel'] = $payload['registration_channel'] ?? 'municipal_office';
 
             if ($photo) {
                 $payload['photo_path'] = $photo->store('citizens/photos', 'public');
             }
 
             $citizen = Citizen::create($payload);
+
             $this->syncCurrentAddress($citizen, $data);
             $this->recordStatus($citizen, null, Citizen::STATUS_DRAFT, $actor, 'Citizen draft created.');
+            $this->activity('citizen.created', $citizen, $actor, [
+                'registration_number' => $citizen->registration_number,
+            ]);
 
             return $this->getCitizen($citizen->id, $actor);
         });
@@ -98,6 +111,7 @@ class CitizenService
                 'registeredBy:id,name,email,phone',
                 'address',
                 'documents.uploadedBy:id,name,email',
+                'documents.verifiedBy:id,name,email',
                 'statusHistories.changedBy:id,name,email',
             ])
             ->findOrFail($id);
@@ -110,10 +124,21 @@ class CitizenService
     public function updateCitizen(Citizen $citizen, array $data, User $actor, ?UploadedFile $photo = null): Citizen
     {
         $this->assertCanAccess($citizen, $actor);
-        $data = $this->applyAuthenticatedLocationScope($data, $actor, $citizen);
+
+        $data = $this->resolveCitizenScope($data, $actor, false, $citizen);
         $this->assertOfficePayloadAllowed($data, $actor);
 
         return DB::transaction(function () use ($citizen, $data, $actor, $photo) {
+            $before = $citizen->only([
+                'national_id',
+                'first_name',
+                'middle_name',
+                'last_name',
+                'phone',
+                'email',
+                'status',
+            ]);
+
             $payload = $this->citizenPayload($data);
 
             if ($photo) {
@@ -124,6 +149,11 @@ class CitizenService
             $citizen->update($payload);
             $this->syncCurrentAddress($citizen, $data);
 
+            $this->activity('citizen.updated', $citizen, $actor, [
+                'before' => $before,
+                'after' => $citizen->fresh()->only(array_keys($before)),
+            ]);
+
             return $this->getCitizen($citizen->id, $actor);
         });
     }
@@ -131,6 +161,7 @@ class CitizenService
     public function deleteCitizen(Citizen $citizen, User $actor): void
     {
         $this->assertCanAccess($citizen, $actor);
+        $this->activity('citizen.deleted', $citizen, $actor);
         $citizen->delete();
     }
 
@@ -139,15 +170,21 @@ class CitizenService
         $this->assertCanAccess($citizen, $actor);
 
         if ($citizen->status !== Citizen::STATUS_DRAFT) {
-            throw ValidationException::withMessages(['status' => ['Only draft registrations can be submitted.']]);
+            throw ValidationException::withMessages([
+                'status' => ['Only draft registrations can be submitted.'],
+            ]);
         }
 
         $missingDocuments = $this->missingRequiredDocuments($citizen);
+
         if ($missingDocuments !== []) {
-            throw ValidationException::withMessages(['documents' => ['Missing required documents: ' . implode(', ', $missingDocuments)]]);
+            throw ValidationException::withMessages([
+                'documents' => ['Missing required documents: ' . implode(', ', $missingDocuments)],
+            ]);
         }
 
         $from = $citizen->status;
+
         $citizen->forceFill([
             'status' => Citizen::STATUS_SUBMITTED,
             'submitted_at' => now(),
@@ -155,6 +192,7 @@ class CitizenService
         ])->save();
 
         $this->recordStatus($citizen, $from, Citizen::STATUS_SUBMITTED, $actor, 'Citizen submitted for verification.');
+        $this->activity('citizen.submitted', $citizen, $actor);
 
         return $this->getCitizen($citizen->id, $actor);
     }
@@ -164,7 +202,11 @@ class CitizenService
         $this->assertCanAccess($citizen, $actor);
         $this->deletePublicFile($citizen->photo_path);
 
-        $citizen->forceFill(['photo_path' => $photo->store('citizens/photos', 'public')])->save();
+        $citizen->forceFill([
+            'photo_path' => $photo->store('citizens/photos', 'public'),
+        ])->save();
+
+        $this->activity('citizen.photo_uploaded', $citizen, $actor);
 
         return $this->getCitizen($citizen->id, $actor);
     }
@@ -173,7 +215,10 @@ class CitizenService
     {
         $this->assertCanAccess($citizen, $actor);
         $this->deletePublicFile($citizen->photo_path);
+
         $citizen->forceFill(['photo_path' => null])->save();
+
+        $this->activity('citizen.photo_removed', $citizen, $actor);
 
         return $this->getCitizen($citizen->id, $actor);
     }
@@ -185,7 +230,7 @@ class CitizenService
         $type = $data['type'];
         $path = $file->store("citizens/{$citizen->id}/documents", 'public');
 
-        return $citizen->documents()->create([
+        $document = $citizen->documents()->create([
             'type' => $type,
             'title' => $data['title'] ?? $this->documentTitle($type),
             'file_path' => $path,
@@ -195,6 +240,13 @@ class CitizenService
             'is_required' => in_array($type, $this->requiredDocumentTypes, true),
             'uploaded_by' => $actor->id,
         ])->load('uploadedBy:id,name,email');
+
+        $this->activity('document.uploaded', $citizen, $actor, [
+            'document_id' => $document->id,
+            'type' => $type,
+        ]);
+
+        return $document;
     }
 
     public function updateDocument(Citizen $citizen, CitizenDocument $document, array $data, ?UploadedFile $file, User $actor): CitizenDocument
@@ -213,16 +265,24 @@ class CitizenService
 
         if ($file) {
             $this->deletePublicFile($document->file_path);
+
             $payload += [
                 'file_path' => $file->store("citizens/{$citizen->id}/documents", 'public'),
                 'original_name' => $file->getClientOriginalName(),
                 'mime_type' => $file->getClientMimeType(),
                 'size' => $file->getSize() ?: 0,
                 'uploaded_by' => $actor->id,
+                'verification_status' => CitizenDocument::VERIFICATION_PENDING,
+                'verified_at' => null,
+                'verified_by' => null,
             ];
         }
 
         $document->update($payload);
+
+        $this->activity('document.updated', $citizen, $actor, [
+            'document_id' => $document->id,
+        ]);
 
         return $document->fresh('uploadedBy:id,name,email');
     }
@@ -234,6 +294,11 @@ class CitizenService
         if ((int) $document->citizen_id !== (int) $citizen->id) {
             throw new AuthorizationException('Document does not belong to this citizen.');
         }
+
+        $this->activity('document.deleted', $citizen, $actor, [
+            'document_id' => $document->id,
+            'type' => $document->type,
+        ]);
 
         $document->delete();
     }
@@ -248,12 +313,17 @@ class CitizenService
             if (filled($nationalId)) {
                 $q->orWhere('national_id', $nationalId);
             }
+
             if (filled($phone)) {
                 $q->orWhere('phone', $phone);
             }
         });
 
-        return $query->limit(20)->get()->map(fn (Citizen $citizen) => $this->summary($citizen))->values()->all();
+        return $query->limit(20)
+            ->get()
+            ->map(fn (Citizen $citizen) => $this->summary($citizen))
+            ->values()
+            ->all();
     }
 
     public function transformPaginated(LengthAwarePaginator $citizens): array
@@ -276,6 +346,7 @@ class CitizenService
         return [
             'id' => $citizen->id,
             'registration_number' => $citizen->registration_number,
+            'citizen_uid' => $citizen->citizen_uid,
             'national_id' => $citizen->national_id,
             'first_name' => $citizen->first_name,
             'middle_name' => $citizen->middle_name,
@@ -321,145 +392,178 @@ class CitizenService
         }
     }
 
-    protected function applyAuthenticatedLocationScope(array $data, User $actor, ?Citizen $citizen = null): array
+    protected function actorScopeColumn(User $actor): ?string
     {
-        if ($actor->hasRole('Super Admin')) {
-            if ($this->hasCompleteLocation($data)) {
-                return $data;
+        return match ($actor->admin_level) {
+            User::LEVEL_CITY => 'city_id',
+            User::LEVEL_SUBCITY => 'subcity_id',
+            User::LEVEL_WOREDA => 'woreda_id',
+            User::LEVEL_ZONE => 'zone_id',
+            default => null,
+        };
+    }
+
+    protected function actorScopeValue(User $actor): ?int
+    {
+        return match ($actor->admin_level) {
+            User::LEVEL_CITY => $actor->office_id,
+            User::LEVEL_SUBCITY => $actor->sub_city_id,
+            User::LEVEL_WOREDA => $actor->woreda_id,
+            User::LEVEL_ZONE => $actor->zone_id,
+            default => null,
+        };
+    }
+
+    protected function resolveCitizenScope(
+        array $data,
+        User $actor,
+        bool $creating,
+        ?Citizen $current = null
+    ): array {
+        if ($actor->isSuperAdmin()) {
+            foreach (['city_id', 'subcity_id', 'woreda_id', 'zone_id'] as $field) {
+                if (empty($data[$field])) {
+                    if ($current) {
+                        $data[$field] = $current->{$field};
+                    } else {
+                        throw ValidationException::withMessages([
+                            $field => [str_replace('_', ' ', ucfirst($field)) . ' is required.'],
+                        ]);
+                    }
+                }
             }
 
-            if ($citizen) {
-                return array_merge($data, [
-                    'city_id' => $citizen->city_id,
-                    'subcity_id' => $citizen->subcity_id,
-                    'woreda_id' => $citizen->woreda_id,
-                    'zone_id' => $citizen->zone_id,
-                ]);
-            }
-
-            throw ValidationException::withMessages([
-                'location' => ['Location is required when Super Admin creates a citizen. Use a scoped Zone Admin for zone-based registration.'],
-            ]);
+            return $data;
         }
 
-        $scope = $this->actorLocationScope($actor);
+        if (! $actor->isAdmin() || ! $actor->admin_level) {
+            throw new AuthorizationException('User has no administrative scope.');
+        }
+
+        if ($creating && $actor->admin_level !== User::LEVEL_ZONE) {
+            throw new AuthorizationException('Only Zone Admin can register citizens.');
+        }
+
+        if ($actor->admin_level === User::LEVEL_ZONE && ! $actor->zone_id) {
+            throw new AuthorizationException('Zone Admin scope is incomplete.');
+        }
+
+        $zone = $actor->zone_id
+            ? Office::query()->with('parent.parent.parent')->find($actor->zone_id)
+            : null;
+
+        $woreda = $actor->woreda_id
+            ? Office::query()->with('parent.parent')->find($actor->woreda_id)
+            : $zone?->parent;
+
+        $subcity = $actor->sub_city_id
+            ? Office::query()->with('parent')->find($actor->sub_city_id)
+            : $woreda?->parent;
+
+        $city = $actor->office_id && $actor->admin_level === User::LEVEL_CITY
+            ? Office::find($actor->office_id)
+            : $subcity?->parent;
+
+        $data['city_id'] = $city?->id ?? $current?->city_id;
+        $data['subcity_id'] = $subcity?->id ?? $current?->subcity_id;
+        $data['woreda_id'] = $woreda?->id ?? $current?->woreda_id;
+        $data['zone_id'] = $zone?->id ?? $current?->zone_id;
 
         foreach (['city_id', 'subcity_id', 'woreda_id', 'zone_id'] as $field) {
-            if (empty($scope[$field])) {
+            if (empty($data[$field])) {
                 throw ValidationException::withMessages([
-                    $field => ['Your account is missing a complete administrative location scope. Contact the system administrator.'],
+                    $field => ['Could not resolve citizen location from logged-in admin scope.'],
                 ]);
             }
         }
 
-        return array_merge($data, $scope);
-    }
-
-    protected function actorLocationScope(User $actor): array
-    {
-        $scope = [
-            'city_id' => null,
-            'subcity_id' => $actor->sub_city_id,
-            'woreda_id' => $actor->woreda_id,
-            'zone_id' => $actor->zone_id,
-        ];
-
-        $office = $actor->office_id ? Office::query()->with('parent.parent.parent')->find($actor->office_id) : null;
-        $current = $office;
-
-        while ($current) {
-            if ($current->type === Office::TYPE_CITY) {
-                $scope['city_id'] = $current->id;
-            } elseif ($current->type === Office::TYPE_SUBCITY) {
-                $scope['subcity_id'] = $scope['subcity_id'] ?: $current->id;
-            } elseif ($current->type === Office::TYPE_WOREDA) {
-                $scope['woreda_id'] = $scope['woreda_id'] ?: $current->id;
-            } elseif ($current->type === Office::TYPE_ZONE) {
-                $scope['zone_id'] = $scope['zone_id'] ?: $current->id;
-            }
-
-            $current = $current->parent;
-        }
-
-        return $scope;
-    }
-
-    protected function hasCompleteLocation(array $data): bool
-    {
-        return filled($data['city_id'] ?? null)
-            && filled($data['subcity_id'] ?? null)
-            && filled($data['woreda_id'] ?? null)
-            && filled($data['zone_id'] ?? null);
+        return $data;
     }
 
     protected function canAccess(Citizen $citizen, User $actor): bool
     {
-        if ($actor->hasRole('Super Admin')) {
+        if ($actor->isSuperAdmin()) {
             return true;
         }
 
-        if (! $actor->hasRole('Admin') || ! $actor->office_id || ! $actor->admin_level) {
+        if (! $actor->isAdmin() || ! $actor->admin_level) {
             return false;
         }
 
-        return match ($actor->admin_level) {
-            'city' => (int) $citizen->city_id === (int) $actor->office_id,
-            'subcity' => (int) $citizen->subcity_id === (int) $actor->office_id,
-            'woreda' => (int) $citizen->woreda_id === (int) $actor->office_id,
-            'zone' => (int) $citizen->zone_id === (int) $actor->office_id,
-            default => false,
-        };
+        $column = $this->actorScopeColumn($actor);
+        $value = $this->actorScopeValue($actor);
+
+        return $column && $value && (int) $citizen->{$column} === (int) $value;
     }
 
     protected function applyOfficeScope(Builder $query, User $actor): void
     {
-        if ($actor->hasRole('Super Admin')) {
+        if ($actor->isSuperAdmin()) {
             return;
         }
 
-        if (! $actor->hasRole('Admin') || ! $actor->office_id || ! $actor->admin_level) {
+        $column = $this->actorScopeColumn($actor);
+        $value = $this->actorScopeValue($actor);
+
+        if (! $actor->isAdmin() || ! $column || ! $value) {
             $query->whereRaw('1 = 0');
             return;
         }
 
-        $column = match ($actor->admin_level) {
-            'city' => 'city_id',
-            'subcity' => 'subcity_id',
-            'woreda' => 'woreda_id',
-            'zone' => 'zone_id',
-            default => null,
-        };
-
-        $column ? $query->where($column, $actor->office_id) : $query->whereRaw('1 = 0');
+        $query->where($column, $value);
     }
 
     protected function assertOfficePayloadAllowed(array $data, User $actor): void
     {
-        if ($actor->hasRole('Super Admin')) {
+        if ($actor->isSuperAdmin()) {
             return;
         }
 
-        $key = match ($actor->admin_level) {
-            'city' => 'city_id',
-            'subcity' => 'subcity_id',
-            'woreda' => 'woreda_id',
-            'zone' => 'zone_id',
-            default => null,
-        };
+        if (! $actor->isAdmin() || ! $actor->admin_level) {
+            throw new AuthorizationException('User has no administrative scope.');
+        }
 
-        if (! $key || ! $actor->office_id || (int) ($data[$key] ?? 0) !== (int) $actor->office_id) {
-            throw new AuthorizationException('You cannot register citizens outside your assigned administrative level.');
+        if ($actor->admin_level !== User::LEVEL_ZONE) {
+            throw new AuthorizationException('Only Zone Admin can register citizens.');
+        }
+
+        if (! $actor->zone_id) {
+            throw new AuthorizationException('Zone Admin scope is incomplete.');
+        }
+
+        if ((int) ($data['zone_id'] ?? 0) !== (int) $actor->zone_id) {
+            throw new AuthorizationException('You cannot register citizens outside your assigned zone.');
         }
     }
 
     protected function citizenPayload(array $data): array
     {
-        return Arr::only($data, [
-            'national_id', 'first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth',
-            'place_of_birth', 'nationality', 'marital_status', 'phone', 'email', 'occupation',
-            'education_level', 'disability_status', 'emergency_contact', 'registration_channel',
-            'city_id', 'subcity_id', 'woreda_id', 'zone_id',
+        $payload = Arr::only($data, [
+            'national_id',
+            'first_name',
+            'middle_name',
+            'last_name',
+            'gender',
+            'date_of_birth',
+            'place_of_birth',
+            'nationality',
+            'marital_status',
+            'phone',
+            'email',
+            'occupation',
+            'education_level',
+            'disability_status',
+            'emergency_contact',
+            'registration_channel',
+            'city_id',
+            'subcity_id',
+            'woreda_id',
+            'zone_id',
         ]);
+
+        $payload['registration_channel'] = $payload['registration_channel'] ?? 'municipal_office';
+
+        return $payload;
     }
 
     protected function syncCurrentAddress(Citizen $citizen, array $data): CitizenAddress
@@ -529,6 +633,7 @@ class CitizenService
         return [
             'id' => $citizen->id,
             'registration_number' => $citizen->registration_number,
+            'citizen_uid' => $citizen->citizen_uid,
             'national_id' => $citizen->national_id,
             'full_name' => $citizen->full_name,
             'first_name' => $citizen->first_name,
@@ -546,5 +651,17 @@ class CitizenService
             'zone' => $citizen->zone,
             'created_at' => optional($citizen->created_at)->toISOString(),
         ];
+    }
+
+    protected function activity(string $event, Citizen $citizen, User $actor, array $properties = []): void
+    {
+        if (function_exists('activity')) {
+            activity()
+                ->causedBy($actor)
+                ->performedOn($citizen)
+                ->withProperties($properties)
+                ->event($event)
+                ->log($event);
+        }
     }
 }

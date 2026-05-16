@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             AdamaOfficeHierarchySeeder::class,
             RolesPermissionsSeeder::class,
+            CitizenBackendCompletionSeeder::class,
             CitizenPhaseOnePermissionSeeder::class,
             CitizenPhaseTwoPermissionSeeder::class,
             CitizenPhaseThreePermissionSeeder::class,

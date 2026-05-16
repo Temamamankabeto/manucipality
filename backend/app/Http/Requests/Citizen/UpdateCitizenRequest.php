@@ -30,13 +30,8 @@ class UpdateCitizenRequest extends FormRequest
             'education_level' => ['nullable', 'string', 'max:120'],
             'disability_status' => ['nullable', 'boolean'],
             'emergency_contact' => ['nullable', 'string', 'max:120'],
-            'registration_channel' => ['nullable', Rule::in(['municipal_office', 'mobile_registration'])],
             'address' => ['required', 'string', 'max:1000'],
             'house_number' => ['nullable', 'string', 'max:100'],
-            'city_id' => ['nullable', 'integer', 'exists:offices,id'],
-            'subcity_id' => ['nullable', 'integer', 'exists:offices,id'],
-            'woreda_id' => ['nullable', 'integer', 'exists:offices,id'],
-            'zone_id' => ['nullable', 'integer', 'exists:offices,id'],
             'photo' => ['nullable', 'image', 'max:4096'],
         ];
     }
