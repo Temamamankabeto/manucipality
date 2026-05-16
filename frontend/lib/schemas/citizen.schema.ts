@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { CitizenPayload } from "@/types/citizen/citizen.type";
 
 export const citizenSchema = z.object({
   national_id: z.string().trim().min(1, "National ID is required"),
@@ -17,12 +16,7 @@ export const citizenSchema = z.object({
   education_level: z.string().trim().optional().or(z.literal("")),
   disability_status: z.boolean().optional(),
   emergency_contact: z.string().trim().optional().or(z.literal("")),
-  registration_channel: z.enum(["municipal_office", "mobile_registration"]),
   address: z.string().trim().min(1, "Address is required"),
   house_number: z.string().trim().optional().or(z.literal("")),
-  city_id: z.union([z.string(), z.number()]).nullable().optional(),
-  subcity_id: z.union([z.string(), z.number()]).nullable().optional(),
-  woreda_id: z.union([z.string(), z.number()]).nullable().optional(),
-  zone_id: z.union([z.string(), z.number()]).nullable().optional(),
   photo: z.any().optional(),
-}) as z.ZodType<CitizenPayload>;
+});

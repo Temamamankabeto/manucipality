@@ -1,5 +1,3 @@
-// frontend/config/sidebar.config.ts
-
 import {
   Bell,
   BarChart3,
@@ -14,11 +12,14 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { getDashboardForRole } from "@/config/dashboard.config";
 
+export type AdminLevel = "city" | "subcity" | "woreda" | "zone";
+
 export type SidebarChildItem = {
   label: string;
   href: string;
   permission?: string;
-  levels?: string[];
+  levels?: AdminLevel[];
+  superOnly?: boolean;
 };
 
 export type SidebarItem = {
@@ -26,7 +27,8 @@ export type SidebarItem = {
   href?: string;
   icon: LucideIcon;
   permission?: string;
-  levels?: string[];
+  levels?: AdminLevel[];
+  superOnly?: boolean;
   children?: SidebarChildItem[];
 };
 
@@ -46,9 +48,14 @@ const sections: SidebarSection[] = [
   {
     title: "Main",
     items: [
-      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      {
+        label: "Dashboard",
+        href: "/dashboard",
+        icon: LayoutDashboard,
+      },
     ],
   },
+
   {
     title: "Citizen Management",
     items: [
@@ -76,25 +83,25 @@ const sections: SidebarSection[] = [
         icon: ShieldCheck,
         children: [
           {
-            label: "Pending",
+            label: "Pending Review",
             href: "/dashboard/citizens/pending",
             permission: "citizens.workflow.review",
             levels: ["woreda"],
           },
           {
-            label: "Verification",
+            label: "Document Verification",
             href: "/dashboard/citizens/verification",
             permission: "citizens.workflow.woreda-verify",
             levels: ["woreda"],
           },
           {
-            label: "Approval",
+            label: "Citizen Approval",
             href: "/dashboard/citizens/approval",
             permission: "citizens.workflow.subcity-approve",
             levels: ["subcity", "city"],
           },
           {
-            label: "Duplicates",
+            label: "Duplicate Cases",
             href: "/dashboard/citizens/duplicates",
             permission: "citizens.workflow.flag",
             levels: ["woreda", "subcity", "city"],
@@ -106,9 +113,11 @@ const sections: SidebarSection[] = [
         href: "/dashboard/households",
         icon: Home,
         permission: "households.read",
+        levels: ["zone"],
       },
     ],
   },
+
   {
     title: "Administration",
     items: [
@@ -116,6 +125,7 @@ const sections: SidebarSection[] = [
         label: "User Management",
         icon: Users,
         permission: "users.read",
+        levels: ["city", "subcity", "woreda"],
         children: [
           {
             label: "Users",
@@ -127,11 +137,13 @@ const sections: SidebarSection[] = [
             label: "Roles",
             href: "/dashboard/users/roles",
             permission: "roles.view",
+            superOnly: true,
           },
           {
             label: "Permissions",
             href: "/dashboard/users/permissions",
             permission: "permissions.view",
+            superOnly: true,
           },
         ],
       },
@@ -140,6 +152,7 @@ const sections: SidebarSection[] = [
         href: "/dashboard/locations",
         icon: MapPinned,
         permission: "offices.read",
+        levels: ["city", "subcity", "woreda"],
       },
       {
         label: "Notifications",
@@ -172,6 +185,10 @@ export function getSidebarForRole(
   };
 }
 
+function isSuperAdminRole(role?: string | null) {
+  return String(role ?? "").toLowerCase().includes("super");
+}
+
 function allowedByPermission(
   permission: string | undefined,
   permissions: string[]
@@ -186,11 +203,15 @@ function allowedByPermission(
 }
 
 function allowedByLevel(
-  levels: string[] | undefined,
+  item: { levels?: AdminLevel[]; superOnly?: boolean },
   adminLevel?: string | null,
   isSuperAdmin = false
 ) {
-  return isSuperAdmin || !levels?.length || levels.includes(String(adminLevel ?? ""));
+  if (isSuperAdmin) return true;
+  if (item.superOnly) return false;
+  if (!item.levels?.length) return true;
+
+  return item.levels.includes(String(adminLevel ?? "") as AdminLevel);
 }
 
 export function filterSidebarByPermissions(
@@ -198,9 +219,7 @@ export function filterSidebarByPermissions(
   permissions: string[] = [],
   role?: string | null
 ) {
-  const isSuperAdmin = String(role ?? "")
-    .toLowerCase()
-    .includes("super");
+  const isSuperAdmin = isSuperAdminRole(role);
 
   return roleSidebar.sections
     .map((section) => ({
@@ -210,7 +229,7 @@ export function filterSidebarByPermissions(
           const children = item.children?.filter(
             (child) =>
               allowedByPermission(child.permission, permissions) &&
-              allowedByLevel(child.levels, roleSidebar.adminLevel, isSuperAdmin)
+              allowedByLevel(child, roleSidebar.adminLevel, isSuperAdmin)
           );
 
           if (item.children) {
@@ -218,7 +237,7 @@ export function filterSidebarByPermissions(
           }
 
           return allowedByPermission(item.permission, permissions) &&
-            allowedByLevel(item.levels, roleSidebar.adminLevel, isSuperAdmin)
+            allowedByLevel(item, roleSidebar.adminLevel, isSuperAdmin)
             ? item
             : null;
         })

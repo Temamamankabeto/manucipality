@@ -291,35 +291,58 @@ class UserService
         $user->delete();
     }
 
-    protected function normalizeOfficeScope(array $data): array
-    {
-        $scope = [
-            'office_id' => $data['office_id'] ?? null,
-            'sub_city_id' => $data['sub_city_id'] ?? null,
-            'woreda_id' => $data['woreda_id'] ?? null,
-            'zone_id' => $data['zone_id'] ?? null,
-        ];
+ protected function normalizeOfficeScope(array $data): array
+ {
+ $scope = [
+ 'office_id' => $data['office_id'] ?? null,
+ 'sub_city_id' => $data['sub_city_id'] ?? null,
+ 'woreda_id' => $data['woreda_id'] ?? null,
+ 'zone_id' => $data['zone_id'] ?? null,
+ ];
 
-        if (! empty($scope['office_id'])) {
-            $office = Office::query()->with('parent.parent.parent')->findOrFail($scope['office_id']);
-            $current = $office;
+ $selectedOfficeId =
+ $scope['zone_id']
+ ?? $scope['woreda_id']
+ ?? $scope['sub_city_id']
+ ?? $scope['office_id']
+ ?? null;
 
-            while ($current) {
-                if ($current->type === Office::TYPE_SUBCITY) {
-                    $scope['sub_city_id'] = $current->id;
-                } elseif ($current->type === Office::TYPE_WOREDA) {
-                    $scope['woreda_id'] = $current->id;
-                } elseif ($current->type === Office::TYPE_ZONE) {
-                    $scope['zone_id'] = $current->id;
-                }
+ if ($selectedOfficeId) {
+ $office = Office::query()
+ ->with('parent.parent.parent')
+ ->findOrFail($selectedOfficeId);
 
-                $current = $current->parent;
-            }
-        }
+ $current = $office;
 
-        return $scope;
-    }
+ while ($current) {
+ if ($current->type === Office::TYPE_SUBCITY) {
+ $scope['sub_city_id'] = $current->id;
+ }
 
+ if ($current->type === Office::TYPE_WOREDA) {
+ $scope['woreda_id'] = $current->id;
+ }
+
+ if ($current->type === Office::TYPE_ZONE) {
+ $scope['zone_id'] = $current->id;
+ }
+
+ $current = $current->parent;
+ }
+
+ // office_id is only the exact assigned office for city/subcity/woreda.
+ // For zone admin, we keep office_id null and use zone_id.
+ $scope['office_id'] = match ($office->type) {
+ Office::TYPE_CITY,
+ Office::TYPE_SUBCITY,
+ Office::TYPE_WOREDA => $office->id,
+ Office::TYPE_ZONE => null,
+ default => null,
+ };
+ }
+
+ return $scope;
+ }
     protected function normalizeAdminLevel(string $roleName, ?string $adminLevel, array $scope): ?string
     {
         if ($roleName === User::ROLE_SUPER_ADMIN) {

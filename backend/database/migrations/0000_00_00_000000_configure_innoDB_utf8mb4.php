@@ -10,18 +10,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // PostgreSQL configuration
+        // PostgreSQL session configuration
 
-        // Set client encoding
-        DB::statement("SET client_encoding TO 'UTF8'");
-
-        // Set timezone (optional)
-        DB::statement("SET timezone TO 'UTC'");
-
-        // Set standard conforming strings
+        DB::statement("SET client_encoding = 'UTF8'");
+        DB::statement("SET TIME ZONE 'UTC'");
         DB::statement("SET standard_conforming_strings = on");
 
-        // Optional: set search path
+        // Optional schema path
         // DB::statement("SET search_path TO public");
     }
 
@@ -30,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // No reversal needed
+        //
     }
 };
